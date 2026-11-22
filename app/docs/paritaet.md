@@ -300,7 +300,7 @@ werden. Wo „Blocker“ steht, darf #11 nicht ohne Antwort in Produktion gehen.
 | O-4 | Läuft `sendactivatemail.php`/`mailtemp` noch (Cron)? | Ob EXCL-03 bleibt; Betrieb vor Abschalten informieren | Nein |
 | O-5 | MTA/Relay, Absenderadresse und Egress (Port 25/587 zu fremden MX) für Reset-/Zugangsmails und MAIL-04 | Mailversand und Mailboxprüfung | Ja |
 | O-6 | Existieren VoIP-/MeetMe-/SIP-Objekte in Produktion, und wer nutzt sie? | Neubewertung EXCL-01/02 | Nein |
-| O-7 | Wer setzt im alten Produktionsablauf die LDAP-IDs (Zuordnung `uidNumber := members.id`)? | MEM-02/03 | Ja |
+| O-7 | Wer setzt im alten Produktionsablauf die LDAP-IDs (Zuordnung `uidNumber := members.id`)? Im Legacy-PHP `LDAP::assign_member_id` direkt nach `insertmember`; das Portal (portal.funkfeuer.at) lässt `-1` stehen. Zu klären: Ob ein externer Abgleich existiert. Die Neuimplementierung muss die ID schreiben. | MEM-02/03 | Nein |
 | O-8 | Reale DB-Grants, Verbraucher der Views (`f_dns`, `r_dns`, `smokeping`, `smokeping6`) und Cron `update_lastseen` | Schema darf nicht verändert werden, Rolle der App-Rechte | Ja |
 | O-9 | Existiert die Rolle Superuser produktiv, und wer hält sie? | MEM-07 und Testdaten | Nein |
 | O-10 | Rollback-Stand: Datenbank- und LDAP-Schreibzugriffe nach Cutover und Rückweg | #11 | Ja |

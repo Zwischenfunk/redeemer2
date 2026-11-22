@@ -11,7 +11,7 @@ use Doctrine\DBAL\Connection;
  */
 final class SeedDigestTest extends StackTestCase
 {
-    private const DB_DIGEST = 'a25b78d3c89d7ab2db210a99fad1744d487485a2442261afc852fc1ce3d96765';
+    private const DB_DIGEST = 'bb07fa2bd0983daaf01d36f56faff41cb11b918bf578892452d89d53a95d3d04';
     private const LDAP_DIGEST = 'fbd42bbc73593367d79a49f8bbeb0bc9579e502566c8539afc3c71af807eba69';
 
     public function testDatabaseSeedIsUnchanged(): void

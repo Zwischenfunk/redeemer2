@@ -5,14 +5,15 @@
 SET session_replication_role = replica;
 SET TIME ZONE 'UTC';
 
+-- Names of 3-7 follow the labels of the legacy welcome page; 0, 1, 2, 9 and 32 are unconfirmed.
 INSERT INTO public.roles (id, name) VALUES
   (0, 'none'),
   (1, 'Admin'),
   (2, 'Superuser'),
-  (3, 'Mitglied'),
-  (4, 'Ausserordentlich'),
-  (5, 'Kein Mitglied'),
-  (6, 'Foerderer'),
+  (3, 'ordentliches Mitglied'),
+  (4, 'ausserord. Mitglied'),
+  (5, 'kein Mitglied'),
+  (6, 'foerderndes Mitglied'),
   (7, 'Ehrenmitglied'),
   (9, 'DeleteMe'),
   (32, 'Mitgliedsantrag vorhanden');

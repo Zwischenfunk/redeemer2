@@ -77,7 +77,8 @@ Passwort aller LDAP-Konten: `rewrite-test-only`.
 | – | `testpending` | – | `uidNumber` -1 (Teilanlage) | – |
 
 Rollen-IDs wie in Produktion: 0, 1 Admin, 2 Superuser, 3–7 Mitgliedsstatus, 9 DeleteMe, 32 Mitgliedsantrag vorhanden.
-Die Rollennamen sind nicht bestätigt (aus dem Test-Seed von portal.funkfeuer.at übernommen).
+Die Namen von 3–7 folgen den Bezeichnungen der Legacy-Startseite (`DatabaseUtils::welcome()`); 0, 1, 2, 9 und 32 sind
+unbestätigt (Test-Seed von portal.funkfeuer.at). Die echten Namen liefert `SELECT id, name FROM roles` auf der Produktions-DB.
 
 * Geräte: 1 `alpha-r1` (Node 1, `10.12.0.1`), 2 `beta-r1` (Node 2, `10.12.0.2`), 3 `gamma-r1` (Node 3, `10.12.0.3`),
   4 `alpha-v642` (Node 1, v642, `185.194.20.1`). `devices.id_members` bleibt wie bei den Originalroutinen leer.
@@ -130,7 +131,8 @@ Bestätigter Originalvertrag, abgesichert durch `OriginalContractTest`:
   (v642), `V642_IPV4_NET` `185.194.20.0/20`. Die Mailprüfung braucht ausgehenden Port 25 (Fehlercodes 994–998 werden
   nicht gecacht). Das Dienstkonto braucht in LDAP Suche, Anlegen, Ändern und Löschen und in der DB `EXECUTE` auf die
   Routinen sowie Schreibrechte auf `nodes`, `devices`, `ip6`, `members_roles` und `verify`.
-  Wer `uidNumber` nach dem Anlegen von -1 auf `members.id` setzt, ist weiter offen (O-7).
+  Die `uidNumber` setzt das Legacy-PHP selbst: `LDAP::assign_member_id` schreibt nach `insertmember` `uidNumber` und
+  `gidNumber` = `members.id`. Das Portal tut das nicht und lässt `-1` stehen (siehe O-7).
 
 ## Übergabe: Probe für den späteren CI-Stack
 
