@@ -48,7 +48,8 @@ Gerätebesitz folgt dem Node, IPv6 dem Node bzw. Gerät.
 Rewrite POST+CSRF, siehe A-1). *POST* = schon im Altsystem POST (`do=true`),
 im Rewrite zusätzlich CSRF.
 
-**Test-Spalte**: Benennung `Feature › Szenario`; das Testwerkzeug legen #3/#4 fest, die Namen
+**Test-Spalte**: Benennung `Feature › Szenario`; Stack-Tests laufen mit PHPUnit (#3, siehe
+[teststack.md](teststack.md)); das Werkzeug für Browser-Szenarien legt #4 fest, die Namen
 bleiben davon unabhängig.
 Die Szenarien sind in den Folge-Issues zu schreiben; die ID der Matrixzeile
 steht als Tag (`@PAR-…`) am Szenario. „Altbestand“ nennt vorhandene Evidenz
