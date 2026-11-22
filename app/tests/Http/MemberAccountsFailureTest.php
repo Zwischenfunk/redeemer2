@@ -258,6 +258,16 @@ final class MemberAccountsFailureTest extends HttpStackTestCase
         self::assertSame(1, (int) $this->db()->fetchOne('SELECT count(*) FROM members WHERE id = ?', [$id]));
     }
 
+    public function testPartialDeleteCanBeCompletedByRetrying(): void
+    {
+        $id = $this->createReal();
+        $this->accounts(['delete'])->delete($this->admin(), $id);
+        $outcome = $this->accounts()->delete($this->admin(), $id);
+
+        self::assertSame(Status::Done, $outcome->status);
+        self::assertSame(0, (int) $this->db()->fetchOne('SELECT count(*) FROM members WHERE id = ?', [$id]));
+    }
+
     public function testResetWithFailingDirectoryChangesNothingAndSendsNoMail(): void
     {
         $outcome = $this->accounts(['directoryUpdate'])->resetPassword('', 'testuser@example.test');

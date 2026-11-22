@@ -63,12 +63,11 @@ final class MemberDeleteTest extends HttpStackTestCase
         self::assertSame([true, true], $this->exists(6, 'testplain'));
     }
 
-    public function testMemberWithoutLdapAccountIsNotDeletedFromDatabaseOnly(): void
+    public function testMemberWithoutLdapAccountIsDeletedFromDatabase(): void
     {
         $response = $this->delete($this->loggedIn('testadmin'), 9);
-        self::assertSame(409, $response->getStatusCode());
-        self::assertStringContainsString('LDAP-Konto wurde nicht gefunden', $response->getContent(false));
-        self::assertTrue($this->exists(9, 'testsqlonly')[0]);
+        self::assertSame(200, $response->getStatusCode());
+        self::assertSame([false, false], $this->exists(9, 'testsqlonly'));
     }
 
     public function testOwnAccountAndImpersonatedAccountCannotBeDeleted(): void

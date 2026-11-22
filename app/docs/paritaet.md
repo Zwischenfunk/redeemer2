@@ -271,14 +271,14 @@ Teilfehler in `MemberAccountsFailureTest`); die `Feature › Szenario`-Namen der
 Festlegungen, die über die Matrix hinausgehen:
 
 - **HTTP-Codes:** 200 Erfolg; 422 Validierung/Vorbedingung (Formular mit Werten und Fehlern); 409 Löschen nicht möglich
-  (Rollen 1–8, Nodes/Tech-C inkl. Vorschlagszeilen mit negativer ID, eigenes oder imitiertes Konto, kein LDAP-Konto); 403
+  (Rollen 1–8, Nodes/Tech-C inkl. Vorschlagszeilen mit negativer ID, eigenes oder imitiertes Konto, ); 403
   fehlendes Recht oder ungültiges CSRF-Token; 404 unbekannte ID; 502 mit `data-status="failed|partial"` bei Backend-Fehlern.
 - **Reihenfolge und Teilfehler (A-7):** Validierung und Rechte vor jedem Schreibzugriff, dann LDAP, dann SQL. Bleibt nach einem
   Fehler ein Teil bestehen (Anlegen: LDAP-Konto ohne Datenbankzeile oder ohne ID; Ändern; Löschen; Reset ohne Mail),
   meldet die Seite `partial` und nennt den Zustand; es gibt kein stilles Zurückrollen und keine Wiederholung. Beim Anlegen
   entfällt die Mail, wenn die ID-Zuordnung scheitert.
-- **Löschen ohne LDAP-Konto** (z. B. `testsqlonly`) wird verweigert, damit kein Datenbank-Rest ohne Verzeichniseintrag
-  entsteht; Altsystem: unklar.
+- **Löschen ohne LDAP-Konto** (z. B. `testsqlonly` oder nach einem Teilfehler) überspringt den LDAP-Schritt und löscht nur
+  die Datenbankzeile; so lässt sich ein Teillösch-Zustand über die Oberfläche abschließen.
 - **Reset-CSRF:** Cookie `CSRFreset` plus Formularfeld `CSRFtoken` (Token-ID `password_reset`, einmalig). Das
   Legacy-Cookie `CSRFtoken` wird nicht verwendet, damit ein offenes Login-Formular nicht überschrieben wird.
   Fehlt Cookie oder Feld: 406; Abweichung: 401. Angemeldete erhalten für `pwdreset` 404 (GET) bzw. 405 (POST).
@@ -286,9 +286,8 @@ Festlegungen, die über die Matrix hinausgehen:
 - **Impersonation:** Sitzungsschlüssel `impersonated_member_id`; Rechte folgen der Ursprungsrolle, Objektbezug der wirksamen
   ID, nur für Admins (A-3). Der Wechsel leitet nach `?section=nodes`, die Seite entsteht in #7 (bis dahin 404).
 - **Offene Risiken (Altverhalten, MEM-07):** Ein Superuser darf die E-Mail eines beliebigen Mitglieds ändern; zusammen
-  mit dem Reset ohne Rate-Limit lässt sich so das Passwort eines Admins an eine eigene Adresse senden lassen. Ein Teillösch-
-  Zustand (LDAP gelöscht, Zeile in der Datenbank) lässt sich über die Oberfläche nicht abschließen (Löschen verlangt das
-  LDAP-Konto). Beides ist als Entscheidung für #10 offen.
+  mit dem Reset ohne Rate-Limit lässt sich so das Passwort eines Admins an eine eigene Adresse senden lassen. Das ist als
+  Entscheidung für #10 offen.
 - **Mailstatus:** `data-mail-status`-Platzhalter bleibt für #8 offen.
 - **Konfiguration:** `USER_ROLES` (JSON), `MEMBER_SUBSCRIBE_MAIL`, `MAIL_FROM_NAME`, `PORTAL_URL` (siehe teststack.md). Ob der
   Standardwert von `USER_ROLES` der Produktion entspricht, ist offen (O-9), ebenso Mailrelay (O-5) und LDAP-ACLs (O-2).

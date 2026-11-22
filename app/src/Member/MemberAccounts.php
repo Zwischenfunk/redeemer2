@@ -196,10 +196,10 @@ final readonly class MemberAccounts
         }
 
         try {
-            if (!$this->directory->exists($memberId)) {
-                return Outcome::rejected('Fehler - das LDAP-Konto wurde nicht gefunden. Das Mitglied wurde nicht gelöscht.');
+            // A missing account is the state after a partial delete (or a SQL-only member): finish the database side.
+            if ($this->directory->exists($memberId)) {
+                $this->directory->remove($memberId);
             }
-            $this->directory->remove($memberId);
         } catch (BackendFailure $failure) {
             return $this->failed($failure, 'Das Mitglied wurde nicht gelöscht.');
         }
