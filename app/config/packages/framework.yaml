@@ -1,11 +1,14 @@
 framework:
     secret: '%env(APP_SECRET)%'
+    csrf_protection: true
     http_method_override: false
     handle_all_throwables: true
     php_errors:
         log: true
     session:
-        cookie_secure: '%env(bool:SESSION_COOKIE_SECURE)%'
+        name: redeemer_wien
+        cookie_secure: '%env(bool:default:session_cookie_secure:SESSION_COOKIE_SECURE)%'
+        cookie_httponly: true
         cookie_samesite: strict
         cookie_path: '%env(SESSION_COOKIE_PATH)%'
         save_path: '%env(SESSION_SAVE_PATH)%'

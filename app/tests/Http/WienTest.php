@@ -56,7 +56,7 @@ final class WienTest extends TestCase
     /** @return iterable<string, array{string}> */
     public static function hiddenPaths(): iterable
     {
-        foreach (['/composer.json', '/composer.lock', '/vendor/autoload.php', '/config/services.yaml', '/src/Kernel.php', '/templates/base.html.twig', '/bin/console', '/index.php', '/assets/../composer.json', '/assets/%2e%2e/composer.json'] as $path) {
+        foreach (['/composer.json', '/composer.lock', '/vendor/autoload.php', '/config/services.yaml', '/src/Kernel.php', '/templates/base.html.twig', '/bin/console', '/index.php/extra', '/index.php.bak', '/assets/../composer.json', '/assets/%2e%2e/composer.json', '/api/login-check'] as $path) {
             yield $path => [$path];
         }
     }

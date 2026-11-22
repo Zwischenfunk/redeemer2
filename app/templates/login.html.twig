@@ -1,0 +1,14 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Anmelden{% endblock %}
+
+{% block body %}
+    <h1>Redeemer</h1>
+    {% if failed %}<p role="alert">User/Password missmatch</p>{% endif %}
+    <form method="post">
+        <input type="hidden" name="CSRFtoken" value="{{ token }}">
+        <p><label>Nickname <input name="nickname" autocomplete="username" required></label></p>
+        <p><label>Passwort <input type="password" name="password" autocomplete="current-password" required></label></p>
+        <button type="submit">Anmelden</button>
+    </form>
+{% endblock %}

@@ -24,10 +24,20 @@ header .brand {
 
 header nav {
     display: flex;
+    flex-wrap: wrap;
+    align-items: center;
     gap: 1rem;
 }
 
-main {
+main, footer {
     max-width: 48rem;
     padding: 1rem 1.5rem;
 }
+
+th, td {
+    padding: 0.3rem 0.5rem;
+}
+
+.online-good { color: #186326; }
+.online-fair { color: #845400; }
+.online-poor { color: #a42616; }
