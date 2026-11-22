@@ -1,0 +1,9 @@
+security:
+    # Login, LDAP user provider and access rules follow in the authentication work package.
+    providers:
+        none:
+            memory: ~
+    firewalls:
+        main:
+            lazy: true
+            provider: none

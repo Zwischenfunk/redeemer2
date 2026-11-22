@@ -1,0 +1,9 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Über{% endblock %}
+
+{% block body %}
+    <h1>Über diesen Stand</h1>
+    <p>Symfony 7.4 LTS, PHP 8.4, Twig. Nur <code>public/</code> ist Webwurzel; Assets werden ohne Node-Build ausgeliefert.</p>
+    <p><a href="{{ path('app_home') }}">Zurück zur Hauptseite</a></p>
+{% endblock %}

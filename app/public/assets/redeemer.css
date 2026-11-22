@@ -1,0 +1,33 @@
+body {
+    margin: 0;
+    font-family: system-ui, sans-serif;
+    color: #222;
+    background: #fff;
+}
+
+header {
+    display: flex;
+    gap: 2rem;
+    align-items: center;
+    padding: 0.75rem 1.5rem;
+    background: #1d3557;
+}
+
+header a {
+    color: #fff;
+    text-decoration: none;
+}
+
+header .brand {
+    font-weight: 700;
+}
+
+header nav {
+    display: flex;
+    gap: 1rem;
+}
+
+main {
+    max-width: 48rem;
+    padding: 1rem 1.5rem;
+}

@@ -1,0 +1,163 @@
+dn: ou=users,dc=funkfeuer,dc=at
+objectClass: organizationalUnit
+ou: users
+
+dn: uid=testadmin,ou=users,dc=funkfeuer,dc=at
+objectClass: top
+objectClass: posixAccount
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: person
+uid: testadmin
+uidNumber: 1
+gidNumber: 1
+homeDirectory: /home/testadmin
+cn: Anna Admin
+sn: Admin
+givenName: Anna
+mail: testadmin@example.test
+userPassword: rewrite-test-only
+
+dn: uid=testsuper,ou=users,dc=funkfeuer,dc=at
+objectClass: top
+objectClass: posixAccount
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: person
+uid: testsuper
+uidNumber: 2
+gidNumber: 2
+homeDirectory: /home/testsuper
+cn: Sven Super
+sn: Super
+givenName: Sven
+mail: testsuper@example.test
+userPassword: rewrite-test-only
+
+dn: uid=testuser,ou=users,dc=funkfeuer,dc=at
+objectClass: top
+objectClass: posixAccount
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: person
+uid: testuser
+uidNumber: 3
+gidNumber: 3
+homeDirectory: /home/testuser
+cn: Uli User
+sn: User
+givenName: Uli
+mail: testuser@example.test
+userPassword: rewrite-test-only
+
+dn: uid=testowner2,ou=users,dc=funkfeuer,dc=at
+objectClass: top
+objectClass: posixAccount
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: person
+uid: testowner2
+uidNumber: 4
+gidNumber: 4
+homeDirectory: /home/testowner2
+cn: Olga Owner
+sn: Owner
+givenName: Olga
+mail: testowner2@example.test
+userPassword: rewrite-test-only
+
+dn: uid=testtech,ou=users,dc=funkfeuer,dc=at
+objectClass: top
+objectClass: posixAccount
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: person
+uid: testtech
+uidNumber: 5
+gidNumber: 5
+homeDirectory: /home/testtech
+cn: Tom Tech
+sn: Tech
+givenName: Tom
+mail: testtech@example.test
+userPassword: rewrite-test-only
+
+dn: uid=testplain,ou=users,dc=funkfeuer,dc=at
+objectClass: top
+objectClass: posixAccount
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: person
+uid: testplain
+uidNumber: 6
+gidNumber: 6
+homeDirectory: /home/testplain
+cn: Paula Plain
+sn: Plain
+givenName: Paula
+mail: testplain@example.test
+userPassword: rewrite-test-only
+
+dn: uid=testhonor,ou=users,dc=funkfeuer,dc=at
+objectClass: top
+objectClass: posixAccount
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: person
+uid: testhonor
+uidNumber: 7
+gidNumber: 7
+homeDirectory: /home/testhonor
+cn: Hans Honor
+sn: Honor
+givenName: Hans
+mail: testhonor@example.test
+userPassword: rewrite-test-only
+
+dn: uid=testfriend,ou=users,dc=funkfeuer,dc=at
+objectClass: top
+objectClass: posixAccount
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: person
+uid: testfriend
+uidNumber: 8
+gidNumber: 8
+homeDirectory: /home/testfriend
+cn: Frida Friend
+sn: Friend
+givenName: Frida
+mail: testfriend@example.test
+userPassword: rewrite-test-only
+
+dn: uid=testldaponly,ou=users,dc=funkfeuer,dc=at
+objectClass: top
+objectClass: posixAccount
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: person
+uid: testldaponly
+uidNumber: 900
+gidNumber: 900
+homeDirectory: /home/testldaponly
+cn: Lars Ldaponly
+sn: Ldaponly
+givenName: Lars
+mail: testldaponly@example.test
+userPassword: rewrite-test-only
+
+dn: uid=testpending,ou=users,dc=funkfeuer,dc=at
+objectClass: top
+objectClass: posixAccount
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: person
+uid: testpending
+uidNumber: -1
+gidNumber: -1
+homeDirectory: /home/testpending
+cn: Petra Pending
+sn: Pending
+givenName: Petra
+mail: testpending@example.test
+userPassword: rewrite-test-only
