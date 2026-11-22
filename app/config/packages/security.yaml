@@ -1,9 +1,10 @@
 security:
-    # Login, LDAP user provider and access rules follow in the authentication work package.
+    session_fixation_strategy: migrate
     providers:
-        none:
-            memory: ~
+        members:
+            id: App\Security\MemberProvider
     firewalls:
         main:
             lazy: true
-            provider: none
+            provider: members
+            custom_authenticators: [App\Security\BrowserAuthenticator]

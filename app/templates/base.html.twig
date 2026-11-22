@@ -11,11 +11,31 @@
         <a class="brand" href="{{ path('app_home') }}">Redeemer</a>
         <nav>
             <a href="{{ path('app_home') }}">Hauptseite</a>
+            {% if is_granted('ROLE_MEMBER') %}
+                <a href="{{ path('app_home', {section: 'member', action: 'update'}) }}">Benutzerdaten</a>
+                <a href="{{ path('app_home', {section: 'nodes'}) }}">Nodes</a>
+                <a href="https://voip.funkfeuer.at/extensions/">VoIP</a>
+                <a href="https://voip.funkfeuer.at/phonebook/">Phonebook</a>
+                <form method="post" action="{{ path('app_home', {logoff: 'true'}) }}">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('browser_logout') }}">
+                    <button type="submit">Logout</button>
+                </form>
+            {% endif %}
             <a href="{{ path('app_about') }}">Über</a>
         </nav>
     </header>
     <main>
+        {% if is_granted('ROLE_ADMIN') or is_granted('ROLE_SUPERUSER') %}
+            <nav aria-label="Mitgliederverwaltung">
+                <strong>Mitgliederverwaltung: {{ is_granted('ROLE_ADMIN') ? 'Admin' : 'Superuser' }}</strong>
+                <a href="{{ path('app_home', {section: 'member', action: 'insert'}) }}">Benutzer anlegen</a>
+                <a href="{{ path('app_home', {section: 'member', action: 'search'}) }}">Mitglieder suchen</a>
+            </nav>
+        {% endif %}
         {% block body %}{% endblock %}
     </main>
+    {% if is_granted('ROLE_MEMBER') and app.request.clientIp %}
+        <footer>Verbindung: {{ ':' in app.request.clientIp ? 'IPv6' : 'IPv4' }}</footer>
+    {% endif %}
 </body>
 </html>

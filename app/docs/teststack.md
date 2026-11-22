@@ -24,8 +24,9 @@ Mailpit-Oberfläche `http://127.0.0.1:18481/` (`REWRITE_MAIL_UI_PORT`). DB und L
 * `app/` ist der Symfony-Baum (PHP 8.4, Symfony 7.4 LTS, Twig, Doctrine DBAL ohne ORM, Composer-Lockfile).
   nginx bekommt nur `app/public/` eingebunden; `config/`, `src/`, `templates/` und `vendor/` liegen nicht im HTTP-Baum.
   Assets liegen in `app/public/assets/` und werden ohne Node-Build ausgeliefert.
-* nginx bildet `/wien/` auf den Front Controller ab (`SCRIPT_NAME=/wien/index.php`); Symfony erzeugt dadurch
-  alle Links und Asset-URLs unter `/wien/`. `/wien/index.php` und alles außerhalb von `/wien/` liefert 404.
+* nginx bildet `/wien/` auf den Front Controller ab (`SCRIPT_NAME=/wien/index.php`). `/wien/index.php` ist
+  der belegte Browser-Alias, kein zusätzlicher PHP-Einstiegspunkt. Generierte Links bleiben kanonisch
+  unter `/wien/`; Varianten wie `/wien/index.php/extra` und interne Dateien bleiben gesperrt.
 * Netz `stack` ist `internal: true` (kein Gateway). Das PHP-Image, die Tests und alle Dienste liegen nur dort;
   weder reale MX-Server noch reale LDAP-Server oder öffentliches DNS sind erreichbar (`NoEgressTest`).
   Mails gehen per SMTP an Mailpit (`smtp://mail:1025`), Mailpit hat kein Relay. Nur nginx hängt zusätzlich am Netz `edge`
@@ -50,11 +51,31 @@ reicht sie mit `clear_env = no` durch. Die Beispielwerte stehen in `compose.rewr
 | `LDAP_SERVICE_DN`, `LDAP_SERVICE_PASSWORD` | Dienstkonto für Suche und spätere Schreibzugriffe | `cn=admin,dc=funkfeuer,dc=at` / `rewrite-test-only` |
 | `MAILER_DSN` | Symfony-Mailer-Transport | `smtp://mail:1025` (Mailpit) |
 | `MAIL_FROM` | Absenderadresse | `redeemer@example.test` |
-| `SESSION_COOKIE_SECURE` | `1` (produktiv) oder `0` (lokal ohne TLS) | `0` |
+| `SESSION_COOKIE_SECURE` | Standard `1` (produktiv); `0` nur lokal ohne TLS | `0` |
 | `SESSION_COOKIE_PATH` | Cookie-Pfad, entspricht dem URL-Basispfad | `/wien/` |
 | `SESSION_SAVE_PATH` | Verzeichnis der PHP-Sessions | `/var/lib/redeemer/sessions` |
 
 Nur die Tests zusätzlich: `HTTP_BASE_URL` (`http://nginx/wien`), `MAILPIT_URL` (`http://mail:8025`).
+
+## Browser-Identität und Berechtigungen (#5)
+
+`App\Security\MemberIdentity` ist der Symfony-User hinter `#[CurrentUser]` bzw. `Security::getUser()`.
+`originalId` identifiziert das angemeldete Konto; `effectiveId` ist die ID für Profil, Eigentümer- und
+Tech-C-Abfragen. Beide IDs sind in #5 gleich. `originalRoleIds` enthält nur SQL-Rollen des ursprünglichen
+Kontos; `getUserIdentifier()` liefert dessen ID als String. `MemberProvider` liest die Originalidentität
+bei der Session-Wiederaufnahme neu; Änderungen der privilegierten Rolle verlangen einen neuen Login.
+
+Controller prüfen `ROLE_MEMBER`, `ROLE_ADMIN` oder `ROLE_SUPERUSER` serverseitig. Bei beiden
+privilegierten SQL-Rollen gewinnt ID 1 wie im Referenzstand; gemeinsame Aktionen prüfen Admin **oder**
+Superuser. Fachliche Objektberechtigungen prüfen zusätzlich die effektive ID; ein Menüpunkt ist kein
+Berechtigungsnachweis. Mitglieder-/Identitätswechsel (#6), Nodes (#7), Mailboxstatus (#8) und Geräte (#9)
+nutzen diesen Vertrag; ihre Aktionen sind in #5 nicht implementiert.
+
+Der Browser-Login verwendet die an die Session gebundene Formular-CSRF-Prüfung zusätzlich zum
+Legacy-Cookie `CSRFtoken`. Nur nach LDAP- und SQL-Abgleich wird `member_login` ausgeführt und der
+`X-Login-OK`-Redirect gesendet. Die Session-ID wird beim Login erneuert; der Cookie `redeemer_wien`
+übernimmt keine Legacy-Sessions. `POST /wien/?logoff=true` mit separatem CSRF-Token meldet ab,
+`GET` meldet nicht ab. Es gibt keinen sitzungslosen Login.
 
 ## Seeds und Fixture-IDs
 

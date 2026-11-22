@@ -2,9 +2,66 @@
 
 {% block title %}Hauptseite{% endblock %}
 
+{% macro online(seen, total) %}
+    {% if total > 0 %}
+        {% set percent = (100 * seen / total)|round %}
+        <span class="{{ percent > 60 ? 'online-good' : (percent > 30 ? 'online-fair' : 'online-poor') }}">{{ seen }} ({{ percent }}%)</span>
+    {% else %}
+        {{ seen }} (–)
+    {% endif %}
+{% endmacro %}
+
 {% block body %}
-    <h1>Redeemer</h1>
-    <p>Verwaltung von Mitgliedern, Knoten und Geräten bei FunkFeuer Wien.</p>
-    <p>Dies ist der Symfony-Rewrite unter <code>/wien/</code>; Anmeldung und Fachfunktionen folgen.</p>
-    <p><a href="{{ path('app_about') }}">Mehr zu diesem Stand</a></p>
+    <h1>Willkommen im Redeemer!</h1>
+    <h2>Deine Daten</h2>
+    <dl>
+        <dt>Mitglieds-Status</dt>
+        <dd>
+            {% if statuses %}
+                {{ statuses|join(', ') }}
+            {% else %}
+                unbestimmt · <a href="https://wiki.funkfeuer.at/images/f/fb/Mitgliedsantrag-Funkfeuer-Wien.pdf">Antragsformular</a>
+            {% endif %}
+        </dd>
+        {% include '_member_contact.html.twig' %}
+    </dl>
+    {% if counts %}
+        <p>Der Verein besteht derzeit aus {{ counts.total }} Mitgliedern:
+            {{ counts.ordinary }} {{ counts.ordinary == 1 ? 'ordentliches' : 'ordentliche' }},
+            {{ counts.extraordinary }} {{ counts.extraordinary == 1 ? 'außerordentliches' : 'außerordentliche' }}
+            und {{ counts.honorary }} {{ counts.honorary == 1 ? 'Ehrenmitglied' : 'Ehrenmitglieder' }}.</p>
+    {% endif %}
+    {% if proposals > 0 %}
+        <p>Du hast {{ proposals }} {{ proposals == 1 ? 'offenen Vorschlag' : 'offene Vorschläge' }} für einen Knoteninhaber-/Tech-C-Wechsel.</p>
+    {% endif %}
+    {% if stats %}
+        {% set show_ipv6 = stats|filter(row => row.v6 > 0)|length > 0 %}
+        <table>
+            <caption>Deine Node- und Device-Übersicht</caption>
+            <thead><tr>
+                <th scope="col">Node-Gruppe</th>
+                <th scope="col">Nodes</th>
+                <th scope="col">Nodes mit IP</th>
+                <th scope="col">Nodes online</th>
+                <th scope="col">Devices (v4)</th>
+                <th scope="col">Online (v4)</th>
+                {% if show_ipv6 %}<th scope="col">Devices (v6)</th><th scope="col">Online (v6)</th>{% endif %}
+            </tr></thead>
+            <tbody>
+                {% for row in stats %}
+                    <tr>
+                        <th scope="row">{{ row.label }}</th>
+                        <td>{{ row.nodes }}</td>
+                        <td>{{ row.nodes_with_ip }}</td>
+                        <td>{{ _self.online(row.nodes_online, row.nodes_with_ip) }}</td>
+                        <td>{{ row.v4 }}</td>
+                        <td>{{ _self.online(row.v4_online, row.v4) }}</td>
+                        {% if show_ipv6 %}<td>{{ row.v6 }}</td><td>{{ _self.online(row.v6_online, row.v6) }}</td>{% endif %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Du hast noch keine Knoten angelegt.</p>
+    {% endif %}
 {% endblock %}

@@ -9,7 +9,9 @@ export REWRITE_GID ?= $(shell id -g)
 rewrite-up:
 	$(REWRITE) build php
 	$(REWRITE) run --rm composer composer install --no-interaction --prefer-dist
-	$(REWRITE) run --rm --no-deps tools sh -c 'rm -rf /var/cache/redeemer/*'
+	$(REWRITE) stop php
+	$(REWRITE) run --rm --no-deps tools php bin/console cache:clear --env=prod --no-warmup
+	$(REWRITE) run --rm --no-deps tools php bin/console cache:clear --env=test --no-warmup
 	$(REWRITE) up -d --wait nginx
 	@echo "App:     http://127.0.0.1:$${REWRITE_HTTP_PORT:-18480}/wien/"
 	@echo "Mailpit: http://127.0.0.1:$${REWRITE_MAIL_UI_PORT:-18481}/"
