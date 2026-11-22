@@ -11,4 +11,5 @@
         <p><label>Passwort <input type="password" name="password" autocomplete="current-password" required></label></p>
         <button type="submit">Anmelden</button>
     </form>
+    <p><a href="{{ path('app_home', {section: 'pwdreset'}) }}">Passwort vergessen?</a></p>
 {% endblock %}

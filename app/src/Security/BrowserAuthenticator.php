@@ -49,6 +49,7 @@ final class BrowserAuthenticator extends AbstractAuthenticator
 
         return $request->isMethod('POST') && 'app_home' === $request->attributes->get('_route')
             && !$request->query->has('logoff')
+            && !$this->tokens->getToken()?->getUser() instanceof MemberIdentity
             && isset($form['nickname'], $form['password']);
     }
 

@@ -5,6 +5,8 @@ namespace App\Controller;
 use App\Infrastructure\MemberDashboard;
 use App\Security\BrowserAuthenticator;
 use App\Security\MemberIdentity;
+use App\Web\MemberPages;
+use App\Web\PasswordResetPages;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -17,7 +19,7 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 final class HomeController extends AbstractController
 {
     #[Route('/', name: 'app_home', methods: ['GET', 'POST'])]
-    public function home(Request $request, BrowserAuthenticator $login, Security $security, Connection $db, UrlGeneratorInterface $urls, MemberDashboard $dashboard): Response
+    public function home(Request $request, BrowserAuthenticator $login, Security $security, Connection $db, UrlGeneratorInterface $urls, MemberDashboard $dashboard, MemberPages $memberPages, PasswordResetPages $passwordReset): Response
     {
         $urls->getContext()->setBaseUrl($request->getBasePath());
         $query = $request->query->all();
@@ -38,6 +40,9 @@ final class HomeController extends AbstractController
 
         $member = $this->getUser();
         if (!$member instanceof MemberIdentity) {
+            if ('pwdreset' === ($query['section'] ?? null)) {
+                return $passwordReset->handle($request);
+            }
             $cookie = $login->loginCookie();
             $failed = $request->attributes->getBoolean('browser_login_failed');
             $response = $this->render('login.html.twig', ['token' => $cookie->getValue(), 'failed' => $failed]);
@@ -51,21 +56,14 @@ final class HomeController extends AbstractController
         }
 
         $this->denyAccessUnlessGranted('ROLE_MEMBER');
+        $section = $query['section'] ?? '';
+        if ('member' === $section) {
+            return $memberPages->handle($request, $member);
+        }
         if ($request->isMethod('POST')) {
             throw new MethodNotAllowedHttpException(['GET', 'HEAD']);
         }
-
-        $section = $query['section'] ?? '';
-        $action = $query['action'] ?? '';
-        $profile = 'member' === $section && 'update' === $action;
-        if ($profile && isset($query['id']) && (string) $member->effectiveId !== $query['id']) {
-            throw $this->createAccessDeniedException();
-        }
-        if ('member' === $section && in_array($action, ['insert', 'search'], true)
-            && !$this->isGranted('ROLE_ADMIN')) {
-            $this->denyAccessUnlessGranted('ROLE_SUPERUSER');
-        }
-        if ('' !== $section && !$profile) {
+        if ('' !== $section) {
             throw $this->createNotFoundException();
         }
 
@@ -77,9 +75,7 @@ final class HomeController extends AbstractController
             throw $this->createNotFoundException();
         }
 
-        $response = $profile
-            ? $this->render('profile.html.twig', ['member' => $data])
-            : $this->render('home.html.twig', ['member' => $data] + $dashboard->read($member->effectiveId));
+        $response = $this->render('home.html.twig', ['member' => $data] + $dashboard->read($member->effectiveId));
         $response->headers->set('Cache-Control', 'private, no-store');
 
         return $response;

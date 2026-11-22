@@ -1,0 +1,13 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Benutzer löschen{% endblock %}
+
+{% block body %}
+    <h1>Benutzer löschen</h1>
+    <p>Soll {{ member.nickname }} (ID {{ id }}, {{ member.firstname }} {{ member.lastname }}) endgültig gelöscht werden?</p>
+    <form method="post" action="{{ path('app_home', {section: 'member', action: 'delete', id: id}) }}" data-form="member-delete">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('member_delete') }}">
+        <button type="submit">Löschen</button>
+        <a href="{{ path('app_home', {section: 'member', action: 'search'}) }}">Abbrechen</a>
+    </form>
+{% endblock %}

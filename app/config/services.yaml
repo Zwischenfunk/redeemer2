@@ -1,5 +1,9 @@
 parameters:
     session_cookie_secure: '1'
+    env(USER_ROLES): '{"admin":["Admin",1,"1"],"superuser":["Superuser",1,"2"]}'
+    env(MEMBER_SUBSCRIBE_MAIL): '1'
+    env(MAIL_FROM_NAME): 'Funkfeuer Redeemer-Admin'
+    env(PORTAL_URL): 'https://portal.funkfeuer.at/wien/'
 
 services:
     _defaults:
@@ -11,12 +15,39 @@ services:
         exclude:
             - '../src/Kernel.php'
             - '../src/Security/MemberIdentity.php'
+            - '../src/Member/{Actor,Profile,Permission,Outcome,Status,SearchFilter,Denied,NotFound,BackendFailure}.php'
 
     App\Security\BrowserAuthenticator:
         arguments:
             $baseDn: '%env(LDAP_BASE_DN)%'
             $serviceDn: '%env(LDAP_SERVICE_DN)%'
             $servicePassword: '%env(LDAP_SERVICE_PASSWORD)%'
+            $secureCookie: '%env(bool:default:session_cookie_secure:SESSION_COOKIE_SECURE)%'
+            $cookiePath: '%env(SESSION_COOKIE_PATH)%'
+
+    App\Member\LdapMemberDirectory:
+        arguments:
+            $baseDn: '%env(LDAP_BASE_DN)%'
+            $serviceDn: '%env(LDAP_SERVICE_DN)%'
+            $servicePassword: '%env(LDAP_SERVICE_PASSWORD)%'
+
+    App\Member\TwigAccountMailer:
+        arguments:
+            $from: '%env(MAIL_FROM)%'
+            $fromName: '%env(MAIL_FROM_NAME)%'
+            $portalUrl: '%env(PORTAL_URL)%'
+
+    App\Member\MemberAccounts:
+        arguments:
+            $welcomeMail: '%env(bool:MEMBER_SUBSCRIBE_MAIL)%'
+        public: true
+
+    App\Member\RoleDelegation:
+        arguments:
+            $definitions: '%env(json:USER_ROLES)%'
+
+    App\Web\PasswordResetPages:
+        arguments:
             $secureCookie: '%env(bool:default:session_cookie_secure:SESSION_COOKIE_SECURE)%'
             $cookiePath: '%env(SESSION_COOKIE_PATH)%'
 

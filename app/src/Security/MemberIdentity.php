@@ -7,13 +7,27 @@ use Symfony\Component\Security\Core\User\UserInterface;
 
 final readonly class MemberIdentity implements UserInterface, EquatableInterface
 {
+    public string $effectiveNickname;
+
     /** @param list<int> $originalRoleIds */
     public function __construct(
         public int $originalId,
         public int $effectiveId,
         public string $nickname,
         public array $originalRoleIds,
+        ?string $effectiveNickname = null,
     ) {
+        $this->effectiveNickname = $effectiveNickname ?? $nickname;
+    }
+
+    public function actingAs(int $memberId, string $nickname): self
+    {
+        return new self($this->originalId, $memberId, $this->nickname, $this->originalRoleIds, $nickname);
+    }
+
+    public function isImpersonating(): bool
+    {
+        return $this->effectiveId !== $this->originalId;
     }
 
     public function getUserIdentifier(): string

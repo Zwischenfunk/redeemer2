@@ -260,8 +260,37 @@ Altverhalten ohne Entscheidung (Abschnitt 7.1) wird bis zu einer Entscheidung
 | Nr. | Altverhalten | Vorgabe |
 |---|---|---|
 | U-1 | Server akzeptiert beim IPv6-Update eine geänderte Adresse, das UI sperrt das Feld (IP6-02) | Paritätstest legt das tatsächliche Altverhalten fest; Änderung nur per Entscheidung im PR von #9 |
-| U-2 | Superuser: Fehlschlag der Mitgliedsrechteprüfung wird still ignoriert (MEM-18) | wie U-1, Entscheidung im PR von #6 |
+| U-2 | Superuser: Fehlschlag der Mitgliedsrechteprüfung wird still ignoriert (MEM-18) | **Entschieden in #6:** Felder oder Rollengruppen außerhalb des erlaubten Satzes ergeben 403, nichts wird still verworfen (`mini` und `_csrf_token` sind erlaubt) |
 | U-3 | Vorschlag wird als `nodes`-Zeile mit negierter ID gespeichert (NODE-10/11) | Speicherform ist Implementierungsdetail; sichtbares Verhalten und DB-Schema bleiben kompatibel (O-8) |
+
+### 7.2 Umsetzung in #6 (Mitglieder, Delegation, Impersonation, Reset)
+
+Die Matrixzeilen AUTH-09..11, NAV-07 und MEM-01..18 sind mit PHPUnit-Tests gegen den echten Stack belegt
+(`tests/Http/{MemberCreateTest,MemberProfileTest,MemberSearchTest,MemberDeleteTest,ImpersonationTest,PasswordResetTest}`,
+Teilfehler in `MemberAccountsFailureTest`); die `Feature › Szenario`-Namen der Spalte „Test“ bleiben Platzhalter für #10.
+Festlegungen, die über die Matrix hinausgehen:
+
+- **HTTP-Codes:** 200 Erfolg; 422 Validierung/Vorbedingung (Formular mit Werten und Fehlern); 409 Löschen nicht möglich
+  (Rollen 1–8, Nodes/Tech-C inkl. Vorschlagszeilen mit negativer ID, eigenes oder imitiertes Konto, ); 403
+  fehlendes Recht oder ungültiges CSRF-Token; 404 unbekannte ID; 502 mit `data-status="failed|partial"` bei Backend-Fehlern.
+- **Reihenfolge und Teilfehler (A-7):** Validierung und Rechte vor jedem Schreibzugriff, dann LDAP, dann SQL. Bleibt nach einem
+  Fehler ein Teil bestehen (Anlegen: LDAP-Konto ohne Datenbankzeile oder ohne ID; Ändern; Löschen; Reset ohne Mail),
+  meldet die Seite `partial` und nennt den Zustand; es gibt kein stilles Zurückrollen und keine Wiederholung. Beim Anlegen
+  entfällt die Mail, wenn die ID-Zuordnung scheitert.
+- **Löschen ohne LDAP-Konto** (z. B. `testsqlonly` oder nach einem Teilfehler) überspringt den LDAP-Schritt und löscht nur
+  die Datenbankzeile; so lässt sich ein Teillösch-Zustand über die Oberfläche abschließen.
+- **Reset-CSRF:** Cookie `CSRFreset` plus Formularfeld `CSRFtoken` (Token-ID `password_reset`, einmalig). Das
+  Legacy-Cookie `CSRFtoken` wird nicht verwendet, damit ein offenes Login-Formular nicht überschrieben wird.
+  Fehlt Cookie oder Feld: 406; Abweichung: 401. Angemeldete erhalten für `pwdreset` 404 (GET) bzw. 405 (POST).
+  Es gibt **kein Rate-Limit**; das ist ein offener Betriebspunkt.
+- **Impersonation:** Sitzungsschlüssel `impersonated_member_id`; Rechte folgen der Ursprungsrolle, Objektbezug der wirksamen
+  ID, nur für Admins (A-3). Der Wechsel leitet nach `?section=nodes`, die Seite entsteht in #7 (bis dahin 404).
+- **Superuser und E-Mail (MEM-07), gewollt:** Ein Superuser darf die E-Mail jedes Mitglieds ändern, etwa wenn eine Adresse
+  dringend korrigiert werden muss. Das beruht auf Vertrauen und Sanktionen unter Menschen, nicht auf einer technischen
+  Sperre; eine Rollenprüfung des Zielmitglieds wird bewusst nicht ergänzt.
+- **Mailstatus:** `data-mail-status`-Platzhalter bleibt für #8 offen.
+- **Konfiguration:** `USER_ROLES` (JSON), `MEMBER_SUBSCRIBE_MAIL`, `MAIL_FROM_NAME`, `PORTAL_URL` (siehe teststack.md). Ob der
+  Standardwert von `USER_ROLES` der Produktion entspricht, ist offen (O-9), ebenso Mailrelay (O-5) und LDAP-ACLs (O-2).
 
 ## 8. Vorhandene Evidenz im Altbestand
 

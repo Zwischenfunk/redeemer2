@@ -1,0 +1,24 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Passwort zurücksetzen{% endblock %}
+
+{% block body %}
+    <h1>Passwort zurücksetzen</h1>
+    {% if outcome %}
+        <div role="{{ outcome.isDone ? 'status' : 'alert' }}" data-status="{{ outcome.status.name|lower }}">
+            {% for message in outcome.messages %}<p>{{ message }}</p>{% endfor %}
+        </div>
+    {% endif %}
+    {% if not outcome or not outcome.isDone %}
+        <form method="post" action="{{ path('app_home', {section: 'pwdreset', action: 'reset'}) }}" data-form="password-reset">
+            <input type="hidden" name="CSRFtoken" value="{{ token }}">
+            {% if nickname is not null %}
+                <p><label>Nickname <input name="nickname" value="{{ nickname }}" maxlength="25" required></label></p>
+            {% else %}
+                <p><label>E-Mail-Adresse <input type="email" name="email" maxlength="50" required></label></p>
+            {% endif %}
+            <button type="submit">Neues Passwort anfordern</button>
+        </form>
+    {% endif %}
+    <p><a href="{{ path('app_home') }}">Zur Anmeldung</a></p>
+{% endblock %}

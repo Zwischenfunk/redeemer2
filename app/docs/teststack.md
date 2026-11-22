@@ -51,6 +51,10 @@ reicht sie mit `clear_env = no` durch. Die Beispielwerte stehen in `compose.rewr
 | `LDAP_SERVICE_DN`, `LDAP_SERVICE_PASSWORD` | Dienstkonto für Suche und spätere Schreibzugriffe | `cn=admin,dc=funkfeuer,dc=at` / `rewrite-test-only` |
 | `MAILER_DSN` | Symfony-Mailer-Transport | `smtp://mail:1025` (Mailpit) |
 | `MAIL_FROM` | Absenderadresse | `redeemer@example.test` |
+| `MAIL_FROM_NAME` | Absendername der Mails (optional) | `Funkfeuer Redeemer` |
+| `PORTAL_URL` | Link in Zugangsmails | `https://portal.example.test/wien/` |
+| `MEMBER_SUBSCRIBE_MAIL` | `1`: Willkommensmail beim Anlegen (die Reset-Mail ist unabhängig) | `1` |
+| `USER_ROLES` | JSON `{"schlüssel": [Label, benötigte Rolle, "Rollen-IDs"]}` für die Rollenfelder im Profil; Standard: Admin und Superuser | siehe `compose.rewrite.yaml` |
 | `SESSION_COOKIE_SECURE` | Standard `1` (produktiv); `0` nur lokal ohne TLS | `0` |
 | `SESSION_COOKIE_PATH` | Cookie-Pfad, entspricht dem URL-Basispfad | `/wien/` |
 | `SESSION_SAVE_PATH` | Verzeichnis der PHP-Sessions | `/var/lib/redeemer/sessions` |
@@ -61,7 +65,8 @@ Nur die Tests zusätzlich: `HTTP_BASE_URL` (`http://nginx/wien`), `MAILPIT_URL` 
 
 `App\Security\MemberIdentity` ist der Symfony-User hinter `#[CurrentUser]` bzw. `Security::getUser()`.
 `originalId` identifiziert das angemeldete Konto; `effectiveId` ist die ID für Profil, Eigentümer- und
-Tech-C-Abfragen. Beide IDs sind in #5 gleich. `originalRoleIds` enthält nur SQL-Rollen des ursprünglichen
+Tech-C-Abfragen. Beide IDs sind gleich, außer ein Admin
+imitiert ein Mitglied (#6, `App\Security\Impersonation`, nur für `ROLE_ADMIN`). `originalRoleIds` enthält nur SQL-Rollen des ursprünglichen
 Kontos; `getUserIdentifier()` liefert dessen ID als String. `MemberProvider` liest die Originalidentität
 bei der Session-Wiederaufnahme neu; Änderungen der privilegierten Rolle verlangen einen neuen Login.
 
@@ -69,13 +74,21 @@ Controller prüfen `ROLE_MEMBER`, `ROLE_ADMIN` oder `ROLE_SUPERUSER` serverseiti
 privilegierten SQL-Rollen gewinnt ID 1 wie im Referenzstand; gemeinsame Aktionen prüfen Admin **oder**
 Superuser. Fachliche Objektberechtigungen prüfen zusätzlich die effektive ID; ein Menüpunkt ist kein
 Berechtigungsnachweis. Mitglieder-/Identitätswechsel (#6), Nodes (#7), Mailboxstatus (#8) und Geräte (#9)
-nutzen diesen Vertrag; ihre Aktionen sind in #5 nicht implementiert.
+nutzen diesen Vertrag; Mitglieder und Identitätswechsel gibt es seit #6, die übrigen Aktionen folgen.
 
 Der Browser-Login verwendet die an die Session gebundene Formular-CSRF-Prüfung zusätzlich zum
 Legacy-Cookie `CSRFtoken`. Nur nach LDAP- und SQL-Abgleich wird `member_login` ausgeführt und der
 `X-Login-OK`-Redirect gesendet. Die Session-ID wird beim Login erneuert; der Cookie `redeemer_wien`
 übernimmt keine Legacy-Sessions. `POST /wien/?logoff=true` mit separatem CSRF-Token meldet ab,
 `GET` meldet nicht ab. Es gibt keinen sitzungslosen Login.
+
+## Mutierende Tests (#6)
+
+Tests, die Mitglieder ändern, erweitern `tests/Http/HttpStackTestCase`: Es sichert `members`, `members_roles`, die
+Sequenz `members_id_seq` und alle LDAP-`posixAccount`-Einträge und stellt sie in `tearDown` wieder her; Mailpit wird
+vorher geleert. `nodes` wird nicht wiederhergestellt: Tests dürfen sie nicht ändern, weil der Trigger `changed` setzt und
+`SeedDigestTest` bricht. Kein Seed-Mitglied ist löschbar (Mitglied 6 ist Tech-C des Vorschlags −1); Löschtests legen
+daher ein neues Mitglied an. `tests/Http/Browser` ist ein Cookie-Client, Formulare tragen `data-form="…"` und `_csrf_token`.
 
 ## Seeds und Fixture-IDs
 

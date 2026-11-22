@@ -1,0 +1,77 @@
+{% extends 'base.html.twig' %}
+
+{% set labels = {
+    nickname: 'Nickname', firstname: 'Vorname', lastname: 'Nachname', street: 'Straße', housenumber: 'Hausnummer',
+    zip: 'PLZ', town: 'Ort', telephone: 'Telefon', mobilephone: 'Mobiltelefon', fax: 'Fax', email: 'E-Mail-Adresse', homepage: 'Homepage'
+} %}
+{% set order = ['nickname', 'firstname', 'lastname', 'street', 'housenumber', 'zip', 'town', 'telephone', 'mobilephone', 'fax', 'email', 'homepage'] %}
+
+{% block title %}{{ insert ? 'Benutzer anlegen' : 'Benutzerdaten' }}{% endblock %}
+
+{% block body %}
+    <h1>{{ insert ? 'Benutzer anlegen' : 'Benutzerdaten' }}</h1>
+    {% if outcome %}
+        <div role="{{ outcome.isDone ? 'status' : 'alert' }}" data-status="{{ outcome.status.name|lower }}">
+            {% for message in outcome.messages %}<p>{{ message }}</p>{% endfor %}
+        </div>
+    {% endif %}
+    <form method="post" action="{{ path('app_home', insert ? {section: 'member', action: 'insert'} : {section: 'member', action: 'update', id: id}) }}" data-form="{{ insert ? 'member-create' : 'member-update' }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token(insert ? 'member_create' : 'member_save') }}">
+        <dl>
+            {% for field in order %}
+                <dt><label for="f-{{ field }}">{{ labels[field] }}</label></dt>
+                {% if field in editable %}
+                    <dd>
+                        <input id="f-{{ field }}" name="{{ field }}" value="{{ member[field] }}" {{ errors[field] is defined ? 'aria-invalid="true"' }}>
+                        {% if errors[field] is defined %}<span class="error">{{ errors[field] }}</span>{% endif %}
+                    </dd>
+                {% else %}
+                    <dd>{{ member[field] }}</dd>
+                {% endif %}
+            {% endfor %}
+            {% if insert %}
+                <dt><label for="f-password">Passwort</label></dt>
+                <dd>
+                    <input id="f-password" type="password" name="password" autocomplete="new-password" placeholder="leer = zufällig">
+                    {% if errors.password is defined %}<span class="error">{{ errors.password }}</span>{% endif %}
+                </dd>
+            {% elseif password %}
+                <dt><label for="f-password">Neues Passwort</label></dt>
+                <dd>
+                    <input id="f-password" type="password" name="password" autocomplete="new-password">
+                    <input type="password" name="password2" autocomplete="new-password" aria-label="Passwort wiederholen">
+                    {% if errors.password is defined %}<span class="error">{{ errors.password }}</span>{% endif %}
+                </dd>
+            {% endif %}
+            {% for key, group in groups %}
+                <dt>{{ group.label }}</dt>
+                <dd>
+                    {% if group.ids|length == 1 %}
+                        {% set roleId = group.ids|first %}
+                        <input type="hidden" name="roles[{{ key }}]" value="0">
+                        <label><input type="checkbox" name="roles[{{ key }}]" value="{{ roleId }}" {{ group.selected == roleId ? 'checked' }}> {{ group.names[roleId]|default(roleId) }}</label>
+                    {% else %}
+                        <select name="roles[{{ key }}]" aria-label="{{ group.label }}">
+                            <option value="0" {{ group.selected == 0 ? 'selected' }}>–</option>
+                            {% for roleId in group.ids %}
+                                <option value="{{ roleId }}" {{ group.selected == roleId ? 'selected' }}>{{ group.names[roleId]|default(roleId) }}</option>
+                            {% endfor %}
+                        </select>
+                    {% endif %}
+                    {% if errors.roles is defined %}<span class="error">{{ errors.roles }}</span>{% endif %}
+                </dd>
+            {% endfor %}
+        </dl>
+        <button type="submit">Speichern</button>
+    </form>
+    {% if transformable %}
+        <form method="post" action="{{ path('app_home', {section: 'member', action: 'update', id: id}) }}" data-form="member-transform">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('member_transform') }}">
+            <input type="hidden" name="transform" value="go">
+            <button type="submit">Transform me to {{ member.nickname }}</button>
+        </form>
+    {% endif %}
+    {% if not insert %}
+        <span data-mail-status data-member-id="{{ id }}" data-address="{{ member.email }}"></span>
+    {% endif %}
+{% endblock %}
