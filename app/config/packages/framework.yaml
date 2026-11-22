@@ -1,0 +1,21 @@
+framework:
+    secret: '%env(APP_SECRET)%'
+    http_method_override: false
+    handle_all_throwables: true
+    php_errors:
+        log: true
+    session:
+        cookie_secure: '%env(bool:SESSION_COOKIE_SECURE)%'
+        cookie_samesite: strict
+        cookie_path: '%env(SESSION_COOKIE_PATH)%'
+        save_path: '%env(SESSION_SAVE_PATH)%'
+    mailer:
+        dsn: '%env(MAILER_DSN)%'
+        envelope:
+            sender: '%env(MAIL_FROM)%'
+
+when@test:
+    framework:
+        test: true
+        session:
+            storage_factory_id: session.storage.factory.mock_file

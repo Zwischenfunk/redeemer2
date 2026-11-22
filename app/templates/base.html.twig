@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Redeemer{% endblock %} · FunkFeuer Wien</title>
+    <link rel="stylesheet" href="{{ asset('assets/redeemer.css') }}">
+</head>
+<body>
+    <header>
+        <a class="brand" href="{{ path('app_home') }}">Redeemer</a>
+        <nav>
+            <a href="{{ path('app_home') }}">Hauptseite</a>
+            <a href="{{ path('app_about') }}">Über</a>
+        </nav>
+    </header>
+    <main>
+        {% block body %}{% endblock %}
+    </main>
+</body>
+</html>

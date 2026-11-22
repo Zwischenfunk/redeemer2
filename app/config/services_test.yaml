@@ -1,0 +1,5 @@
+services:
+    # Private services are removed when unused; tests need to fetch the production mailer.
+    Symfony\Component\Mailer\MailerInterface:
+        alias: mailer.mailer
+        public: true

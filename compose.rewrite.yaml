@@ -1,0 +1,149 @@
+# Isolated test stack for the Symfony rewrite (see app/docs/teststack.md).
+# Own project name, own port range (184xx), own volumes: it never touches the legacy stack.
+# Start with `make rewrite-up`; all values below are synthetic and for local tests only.
+name: redeemer-rewrite
+
+x-app-env: &app-env
+  APP_ENV: prod
+  APP_DEBUG: "0"
+  APP_SECRET: rewrite-test-only-secret-not-for-production
+  APP_CACHE_DIR: /var/cache/redeemer
+  DATABASE_URL: postgresql://redeemer:rewrite-test-only@db:5432/redeemer?serverVersion=13&charset=utf8
+  LDAP_URI: ldap://ldap:389
+  LDAP_ENCRYPTION: none
+  LDAP_BASE_DN: ou=users,dc=funkfeuer,dc=at
+  LDAP_SERVICE_DN: cn=admin,dc=funkfeuer,dc=at
+  LDAP_SERVICE_PASSWORD: rewrite-test-only
+  MAILER_DSN: smtp://mail:1025
+  MAIL_FROM: redeemer@example.test
+  SESSION_COOKIE_SECURE: "0"
+  SESSION_COOKIE_PATH: /wien/
+  SESSION_SAVE_PATH: /var/lib/redeemer/sessions
+
+x-php-image: &php-image
+  build: docker/rewrite/php
+  image: redeemer-rewrite-php:8.4
+
+services:
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: redeemer
+      POSTGRES_USER: redeemer
+      POSTGRES_PASSWORD: rewrite-test-only
+      TZ: UTC
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./docker/rewrite/db/00-collation.sql:/docker-entrypoint-initdb.d/00-collation.sql:ro
+      # Set REWRITE_SCHEMA_FILE to import the original schema unchanged (authorised environments only).
+      - ${REWRITE_SCHEMA_FILE:-./docker/rewrite/db/01-schema.sql}:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./docker/rewrite/db/02-seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U redeemer -d redeemer"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+    networks: [stack]
+
+  ldap:
+    image: osixia/openldap:1.5.0
+    platform: linux/amd64
+    command: ["--copy-service", "--loglevel", "warning"]
+    environment:
+      LDAP_ORGANISATION: Redeemer Rewrite Test
+      LDAP_DOMAIN: funkfeuer.at
+      LDAP_ADMIN_PASSWORD: rewrite-test-only
+      LDAP_TLS: "false"
+    volumes:
+      - ldap-data:/var/lib/ldap
+      - ldap-config:/etc/ldap/slapd.d
+      - ./docker/rewrite/ldap/seed.ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom/seed.ldif:ro
+    healthcheck:
+      test: ["CMD-SHELL", "ldapsearch -x -H ldap://localhost -D 'cn=admin,dc=funkfeuer,dc=at' -w rewrite-test-only -b 'uid=testuser,ou=users,dc=funkfeuer,dc=at' uid | grep -q 'uid: testuser'"]
+      interval: 3s
+      timeout: 5s
+      retries: 60
+    networks: [stack]
+
+  mail:
+    image: axllent/mailpit:v1.27
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    networks: [stack]
+
+  php:
+    <<: *php-image
+    environment: *app-env
+    volumes:
+      - ./app:/srv/app
+      - app-cache:/var/cache/redeemer
+      - app-sessions:/var/lib/redeemer/sessions
+    depends_on:
+      db: {condition: service_healthy}
+      ldap: {condition: service_healthy}
+      mail: {condition: service_healthy}
+    networks: [stack]
+
+  nginx:
+    image: nginx:1.28-alpine
+    ports:
+      - "127.0.0.1:${REWRITE_HTTP_PORT:-18480}:80"
+      - "127.0.0.1:${REWRITE_MAIL_UI_PORT:-18481}:8025"
+    volumes:
+      - ./docker/rewrite/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./app/public:/srv/app/public:ro
+    depends_on:
+      php: {condition: service_started}
+      mail: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/wien/"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+    networks: [stack, edge]
+
+  # PHPUnit and console run here: same image and network as php, no route to the internet.
+  tools:
+    <<: *php-image
+    profiles: [tools]
+    user: www-data
+    environment:
+      <<: *app-env
+      APP_ENV: test
+      HTTP_BASE_URL: http://nginx/wien
+      MAILPIT_URL: http://mail:8025
+    volumes:
+      - ./app:/srv/app
+      - app-cache:/var/cache/redeemer
+      - app-sessions:/var/lib/redeemer/sessions
+    depends_on:
+      nginx: {condition: service_healthy}
+    networks: [stack]
+
+  # Needs the internet for Packagist; kept off the test network.
+  composer:
+    <<: *php-image
+    profiles: [tools]
+    user: "${REWRITE_UID:-1000}:${REWRITE_GID:-1000}"
+    environment:
+      HOME: /tmp
+      COMPOSER_HOME: /tmp/composer
+    volumes:
+      - ./app:/srv/app
+    networks: [edge]
+
+networks:
+  # internal: no gateway, so nothing in the stack can reach real mail or LDAP servers.
+  stack:
+    internal: true
+  edge: {}
+
+volumes:
+  db-data:
+  ldap-data:
+  ldap-config:
+  app-cache:
+  app-sessions:
