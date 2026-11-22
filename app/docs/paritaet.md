@@ -285,9 +285,9 @@ Festlegungen, die über die Matrix hinausgehen:
   Es gibt **kein Rate-Limit**; das ist ein offener Betriebspunkt.
 - **Impersonation:** Sitzungsschlüssel `impersonated_member_id`; Rechte folgen der Ursprungsrolle, Objektbezug der wirksamen
   ID, nur für Admins (A-3). Der Wechsel leitet nach `?section=nodes`, die Seite entsteht in #7 (bis dahin 404).
-- **Offene Risiken (Altverhalten, MEM-07):** Ein Superuser darf die E-Mail eines beliebigen Mitglieds ändern; zusammen
-  mit dem Reset ohne Rate-Limit lässt sich so das Passwort eines Admins an eine eigene Adresse senden lassen. Das ist als
-  Entscheidung für #10 offen.
+- **Superuser und E-Mail (MEM-07), gewollt:** Ein Superuser darf die E-Mail jedes Mitglieds ändern, etwa wenn eine Adresse
+  dringend korrigiert werden muss. Das beruht auf Vertrauen und Sanktionen unter Menschen, nicht auf einer technischen
+  Sperre; eine Rollenprüfung des Zielmitglieds wird bewusst nicht ergänzt.
 - **Mailstatus:** `data-mail-status`-Platzhalter bleibt für #8 offen.
 - **Konfiguration:** `USER_ROLES` (JSON), `MEMBER_SUBSCRIBE_MAIL`, `MAIL_FROM_NAME`, `PORTAL_URL` (siehe teststack.md). Ob der
   Standardwert von `USER_ROLES` der Produktion entspricht, ist offen (O-9), ebenso Mailrelay (O-5) und LDAP-ACLs (O-2).
