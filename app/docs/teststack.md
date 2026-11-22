@@ -66,28 +66,40 @@ Passwort aller LDAP-Konten: `rewrite-test-only`.
 |---|---|---|---|---|
 | 1 | `testadmin` | 1 Admin, 3 | `uidNumber` 1 | – |
 | 2 | `testsuper` | 2 Superuser, 3 | 2 | – |
-| 3 | `testuser` | 3 | 3 | Eigentümer von 1 `alpha` (Tech-C 3) und 3 `gamma` |
-| 4 | `testowner2` | 4 | 4 | Eigentümer von 2 `beta`; Tech-C von 3 |
+| 3 | `testuser` | 3 | 3 | Eigentümer von 1 `alpha` (Tech-C 3) und 3 `gamma`; Vorschlag -1 |
+| 4 | `testowner2` | 4 | 4 | Eigentümer von 2 `beta`; Tech-C von 3 und von Vorschlag -2 |
 | 5 | `testtech` | 3 | 5 | Tech-C von 2; Eigentümer und Tech-C von 4 `delta` |
-| 6 | `testplain` | – („unbestimmt“) | 6 | – |
-| 7 | `testhonor` | 7 | 7 | – |
+| 6 | `testplain` | 32 (Mitgliedsantrag vorhanden) | 6 | eingeladener Tech-C im Vorschlag -1 |
+| 7 | `testhonor` | 7 | 7 | künftiger Eigentümer im Vorschlag -2 |
 | 8 | `testfriend` | 6 | 8 | – |
-| 9 | `testsqlonly` | – | **kein** LDAP-Konto | – |
+| 9 | `testsqlonly` | 9 (DeleteMe) | **kein** LDAP-Konto | – |
 | – | `testldaponly` | – | `uidNumber` 900, **kein** Mitgliedssatz | – |
 | – | `testpending` | – | `uidNumber` -1 (Teilanlage) | – |
 
-Rollen: 1 Admin, 2 Superuser, 3 ordentlich, 4 außerordentlich, 5 kein, 6 fördernd, 7 Ehren, 8 Zusatzrolle.
-Geräte: 1 `alpha-r1` (Node 1, `192.0.2.1`), 2 `beta-r1` (Node 2, `192.0.2.2`), 3 `gamma-r1` (Node 3, `192.0.2.3`);
-IPv6 `2001:db8:1::1` an Gerät 1, `2001:db8:2::1` an Node 2. Freie Pools: `main` = `192.0.2.10`–`192.0.2.29`,
-`v642` = `198.51.100.10`–`198.51.100.29` (je 20, `id_devices IS NULL`). Noch nicht enthalten: Übergabevorschläge
-(negative Node-IDs), Mailbox-Cache `verify`; Folge-Issues ergänzen sie.
+Rollen-IDs wie in Produktion: 0, 1 Admin, 2 Superuser, 3–7 Mitgliedsstatus, 9 DeleteMe, 32 Mitgliedsantrag vorhanden.
+Die Rollennamen sind nicht bestätigt (aus dem Test-Seed von portal.funkfeuer.at übernommen).
+
+* Geräte: 1 `alpha-r1` (Node 1, `10.12.0.1`), 2 `beta-r1` (Node 2, `10.12.0.2`), 3 `gamma-r1` (Node 3, `10.12.0.3`),
+  4 `alpha-v642` (Node 1, v642, `185.194.20.1`). `devices.id_members` bleibt wie bei den Originalroutinen leer.
+* IPv6: `2a02:61:1::1` (Node 1), `2a02:61:2::1` (Node 2), `2a02:61:0:ff:0:ff:fe00:1` (Gerät 1, EUI-64) sowie das
+  v642-Paar `2a02:61:0:ee:0:ffff:b9c2:1401` / `…ee:1:ffff:b9c2:1401` (Gerät 4).
+* Freie Pools (`id_devices IS NULL`, je 20): `main` = `10.12.0.4`–`10.12.0.23`, `v642` = `185.194.20.2`–`185.194.20.21`.
+  `getnextfreeip` sortiert die varchar-Spalte als Text: `insertdevice` vergibt zuerst `10.12.0.10`, nicht `10.12.0.4`.
+* Übergabevorschläge sind Node-Zeilen mit negativer ID und `name` = ID als Text: -1 lädt Mitglied 6 als Tech-C von
+  Node 1 ein; -2 übergibt Node 2 an Mitglied 7, der bisherige Eigentümer 4 bleibt Tech-C.
+* Mailbox-Cache `verify`: `hash` = `md5(E-Mail)`; Seed für `testuser@example.test` (Code 250).
+* LDAP-Benutzer haben die ObjectClasses `top`, `posixAccount`, `inetOrgPerson`, `organizationalPerson`, `person`.
+  Das Original legt neue Konten mit `uidNumber`/`gidNumber` -1 und `homeDirectory` `/home/<nick>` an und findet
+  sie für Änderungen und Löschen über `uidNumber`.
 
 ## Originalschema und Testfixture
 
-`docker/rewrite/db/01-schema.sql` ist ein **unabhängig geschriebenes** öffentliches CI-Fixture. Es enthält Tabellen,
-Spaltennamen/-typen, Constraints, Sequenzen, `created`/`changed`-Trigger und die Routinen `insertmember`,
-`updatemember`, `deletemember`, `member_login` und `update_lastseen`. Das Originalschema aus der
-Legacy-Bestandsaufnahme wird nicht versioniert. In einer dafür autorisierten, isolierten Umgebung lässt es sich
+`docker/rewrite/db/01-schema.sql` ist der Schema-Dump (`pg_dump --schema-only`) aus dem öffentlichen Repository
+`https://gitlab.com/funkfeuer/portal.funkfeuer.at` (`tests/schema_real.sql`, Stand Commit `4794890`). Das Repository hat
+keine Lizenzdatei; die FunkFeuer-Maintainer erlauben die Verwendung hier. Der Dump enthält alle Tabellen, Constraints,
+Sequenzen, Trigger und alle 26 Routinen (`insertmember`, `insertnode`, `insertdevice`, `getnextfreeip`, `insertip6`,
+`insertv642`, `updatev642`, `update_lastseen` u. a.). Er ist eine echte Teilmenge des Legacy-Dumps und hat dieselben
+Funktionskörper. Es fehlen Views, `*_backup`-Tabellen, `pgcrypto`, ACLs und Owner. Der volle Legacy-Dump lässt sich
 unverändert importieren:
 
 ```sh
@@ -95,23 +107,36 @@ REWRITE_SCHEMA_FILE=/pfad/zum/redeemer-schema.sql make rewrite-down rewrite-test
 ```
 
 Keine Migrationen, kein Zugriff auf Produktion. Der Seed und alle Tests laufen mit beiden Varianten (die Seed-Summen
-sind identisch); beim Import des Originals gilt dessen Verhalten.
+sind identisch).
 
-| Unterschied | Testfixture | Bestätigter Originalvertrag |
+| Unterschied | Fixture (portal-Dump) | Legacy-Dump |
 |---|---|---|
 | Views (`f_dns`, `r_dns`, `smokeping`, `smokeping6`, `members_and_roles` u. a.), `*_backup`-Tabellen | fehlen | vorhanden |
-| Routinen für Nodes, Geräte, IPv6, v642 (`insertnode`, `insertdevice`, `getnextfreeip`, `insertv642`, `updatev642`, …) und Eindeutigkeits-Trigger | fehlen | vorhanden; Tests für #7/#9 brauchen das Original oder erweitern das Fixture |
-| `updatemember` | schreibt immer | überspringt, wenn nichts geändert ist (kein `changed`-Update) |
-| `member_login` | gleiche Wirkung | gleiche Wirkung |
-| `insertmember` | liefert die neue ID | liefert die neue ID |
-| Grants/Owner der `SECURITY DEFINER`-Routinen | Anwendung nutzt den Besitzer `redeemer` | unbekannt (offener Punkt O-8 der Paritätsmatrix) |
-| Kollation `en_US` | `00-collation.sql` (ICU) | vom Dump erwartet, identische Datei |
+| `pgcrypto`, ACLs, Owner der `SECURITY DEFINER`-Routinen | fehlen; die Anwendung nutzt den Besitzer `redeemer` | Grants unbekannt (offener Punkt O-8 der Paritätsmatrix) |
+| Kollation `en_US` | `00-collation.sql` (ICU), nur für die Views nötig | vom Dump erwartet, identische Datei |
+
+Bestätigter Originalvertrag, abgesichert durch `OriginalContractTest`:
+
+* IPv4: `getnextfreeip` nimmt die erste freie IP in Textreihenfolge; ohne freie `main`-IP schlägt `insertdevice` mit
+  `no free IPs` fehl. `insertnode` setzt den Tech-C auf den Eigentümer.
+* Eindeutigkeit: Node-Name (ohne Groß-/Kleinschreibung), Gerätename je Node, MAC, `ip6`, Nickname.
+* v642: `insertv642` legt Gerät und IPv6-Paar mit fest verdrahteten Präfixen (`2a02:61:0:ee:0|1:ffff:<hex4>`) an;
+  `updatev642` erzeugt das Gerät bei neuer IPv4 mit neuer ID neu; `deletev642` löscht IPv6-Zeilen und Gerät (bestätigt A-5).
+* `update_lastseen` schreibt auf IP, Gerät, Node und `ip6`, ausgenommen die v642-Quelladresse.
+* Typbindung: DBAL bindet ein ungetyptes PHP-`false` als `''`, das PostgreSQL als `boolean` ablehnt. Boolesche
+  Routinenparameter mit `ParameterType::BOOLEAN`, `0`/`1` oder `'f'`/`'t'` übergeben.
+* Weitere Hinweise aus dem Portal-Repository (Konfigurationsstandards, noch nicht umgesetzt): `MAX_642` = 1 (Admins
+  unbegrenzt), Gerätenamen `a-z0-9-` bis 25 Zeichen, IPv6-Netze `2a02:61:0:ff::/64` (EUI-64) und `2a02:61:0:ee::/80`
+  (v642), `V642_IPV4_NET` `185.194.20.0/20`. Die Mailprüfung braucht ausgehenden Port 25 (Fehlercodes 994–998 werden
+  nicht gecacht). Das Dienstkonto braucht in LDAP Suche, Anlegen, Ändern und Löschen und in der DB `EXECUTE` auf die
+  Routinen sowie Schreibrechte auf `nodes`, `devices`, `ip6`, `members_roles` und `verify`.
+  Wer `uidNumber` nach dem Anlegen von -1 auf `members.id` setzt, ist weiter offen (O-7).
 
 ## Übergabe: Probe für den späteren CI-Stack
 
 Der CI-Job startet PostgreSQL 13, OpenLDAP und Mailpit mit den Dateien aus `docker/rewrite/` (`db/00`–`02`, `ldap/seed.ldif`),
 setzt die Variablen oben und führt in `app/` `composer install` und `vendor/bin/phpunit --testsuite stack` aus. Die
-Suite `stack` ist die Probe: Sie prüft PostgreSQL 13, Rollen-IDs 1/2, Pools, DBAL-Routinen, LDAP-Suche und -Bind,
+Suite `stack` ist die Probe: Sie prüft PostgreSQL 13, Rollen-IDs, Pools, DBAL-Routinen und Originalvertrag, LDAP-Suche, -Bind und -Schreibrechte,
 `uidNumber`↔`members.id`, Mailversand nach Mailpit, Seed-Summen und fehlenden Egress. Ohne den internen Netzwerk-Schutz
 des lokalen Stacks muss der CI-Job die Egress-Sperre selbst sicherstellen (`NoEgressTest`). Die Suite `http` braucht
 zusätzlich nginx/PHP-FPM wie in `compose.rewrite.yaml`.

@@ -3,8 +3,11 @@ objectClass: organizationalUnit
 ou: users
 
 dn: uid=testadmin,ou=users,dc=funkfeuer,dc=at
-objectClass: inetOrgPerson
+objectClass: top
 objectClass: posixAccount
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: person
 uid: testadmin
 uidNumber: 1
 gidNumber: 1
@@ -16,8 +19,11 @@ mail: testadmin@example.test
 userPassword: rewrite-test-only
 
 dn: uid=testsuper,ou=users,dc=funkfeuer,dc=at
-objectClass: inetOrgPerson
+objectClass: top
 objectClass: posixAccount
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: person
 uid: testsuper
 uidNumber: 2
 gidNumber: 2
@@ -29,8 +35,11 @@ mail: testsuper@example.test
 userPassword: rewrite-test-only
 
 dn: uid=testuser,ou=users,dc=funkfeuer,dc=at
-objectClass: inetOrgPerson
+objectClass: top
 objectClass: posixAccount
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: person
 uid: testuser
 uidNumber: 3
 gidNumber: 3
@@ -42,8 +51,11 @@ mail: testuser@example.test
 userPassword: rewrite-test-only
 
 dn: uid=testowner2,ou=users,dc=funkfeuer,dc=at
-objectClass: inetOrgPerson
+objectClass: top
 objectClass: posixAccount
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: person
 uid: testowner2
 uidNumber: 4
 gidNumber: 4
@@ -55,8 +67,11 @@ mail: testowner2@example.test
 userPassword: rewrite-test-only
 
 dn: uid=testtech,ou=users,dc=funkfeuer,dc=at
-objectClass: inetOrgPerson
+objectClass: top
 objectClass: posixAccount
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: person
 uid: testtech
 uidNumber: 5
 gidNumber: 5
@@ -68,8 +83,11 @@ mail: testtech@example.test
 userPassword: rewrite-test-only
 
 dn: uid=testplain,ou=users,dc=funkfeuer,dc=at
-objectClass: inetOrgPerson
+objectClass: top
 objectClass: posixAccount
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: person
 uid: testplain
 uidNumber: 6
 gidNumber: 6
@@ -81,8 +99,11 @@ mail: testplain@example.test
 userPassword: rewrite-test-only
 
 dn: uid=testhonor,ou=users,dc=funkfeuer,dc=at
-objectClass: inetOrgPerson
+objectClass: top
 objectClass: posixAccount
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: person
 uid: testhonor
 uidNumber: 7
 gidNumber: 7
@@ -94,8 +115,11 @@ mail: testhonor@example.test
 userPassword: rewrite-test-only
 
 dn: uid=testfriend,ou=users,dc=funkfeuer,dc=at
-objectClass: inetOrgPerson
+objectClass: top
 objectClass: posixAccount
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: person
 uid: testfriend
 uidNumber: 8
 gidNumber: 8
@@ -107,8 +131,11 @@ mail: testfriend@example.test
 userPassword: rewrite-test-only
 
 dn: uid=testldaponly,ou=users,dc=funkfeuer,dc=at
-objectClass: inetOrgPerson
+objectClass: top
 objectClass: posixAccount
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: person
 uid: testldaponly
 uidNumber: 900
 gidNumber: 900
@@ -120,8 +147,11 @@ mail: testldaponly@example.test
 userPassword: rewrite-test-only
 
 dn: uid=testpending,ou=users,dc=funkfeuer,dc=at
-objectClass: inetOrgPerson
+objectClass: top
 objectClass: posixAccount
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: person
 uid: testpending
 uidNumber: -1
 gidNumber: -1

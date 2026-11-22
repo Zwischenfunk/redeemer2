@@ -31,4 +31,16 @@ abstract class StackTestCase extends KernelTestCase
     {
         return (string) getenv('LDAP_BASE_DN');
     }
+
+    /** Runs the test body in a transaction that is always rolled back, so the seed stays untouched. */
+    protected function rollingBack(callable $body): void
+    {
+        $db = $this->db();
+        $db->beginTransaction();
+        try {
+            $body($db);
+        } finally {
+            $db->rollBack();
+        }
+    }
 }
