@@ -48,7 +48,8 @@ Gerätebesitz folgt dem Node, IPv6 dem Node bzw. Gerät.
 Rewrite POST+CSRF, siehe A-1). *POST* = schon im Altsystem POST (`do=true`),
 im Rewrite zusätzlich CSRF.
 
-**Test-Spalte**: Benennung `Feature › Szenario` (Behat-Konvention aus #3/#4).
+**Test-Spalte**: Benennung `Feature › Szenario`; das Testwerkzeug legen #3/#4 fest, die Namen
+bleiben davon unabhängig.
 Die Szenarien sind in den Folge-Issues zu schreiben; die ID der Matrixzeile
 steht als Tag (`@PAR-…`) am Szenario. „Altbestand“ nennt vorhandene Evidenz
 in `tests/e2e/test-local-web.py` (Abschnitt 8); sie ersetzt den Rewrite-Test
@@ -76,8 +77,8 @@ Zeichen `" ' < > # % { } | ^ ~ [ ] \`` ergeben im Altsystem 400.
 | PAR-AUTH-01 | `GET /` ohne Sitzung | anon | Login-Formular (Felder `nickname`, `password`, `CSRFtoken`), Cookie `CSRFtoken` (5 min) | – | #5 | `auth.feature › Login-Formular setzt CSRF-Cookie` |
 | PAR-AUTH-02 | `POST /` (`nickname`, `password`, `CSRFtoken`) | anon | Erfolg: 301 auf die angeforderte URI, Header `X-Login-OK: User=<nick>; Id=<id>`, CSRF-Cookie gelöscht, Sitzung angelegt (siehe Abschnitt 4) | LDAP: Suche (genau 1 Treffer, `posixAccount`/`uid`), Bind als Benutzer. SQL: `members` mit `id>0 AND id=uidnumber`, `member_login(lower(nick))` setzt `last_login`, Rollen aus `members_roles` | #5 | `auth.feature › Browser-Login mit Legacy-Header` |
 | PAR-AUTH-03 | `POST /` mit falschem Passwort | anon | Seite mit „User/Password missmatch“, Header `X-Login-Failed: User/Password error` | LDAP-Bind schlägt fehl; kein `member_login` | #5 | `auth.feature › Falsches Passwort` |
-| PAR-AUTH-04 | `POST /` ohne Cookie/Feld `CSRFtoken` | anon | 406 | – | #5 | `auth.feature › Login ohne CSRF-Token` |
-| PAR-AUTH-05 | `POST /` mit abweichendem `CSRFtoken` | anon | 401 | – | #5 | `auth.feature › Login mit falschem CSRF-Token` |
+| PAR-AUTH-04 | `POST /` mit `nickname` und `password`, ohne Cookie/Feld `CSRFtoken` (ohne beide Felder nur das Login-Formular) | anon | 406 | – | #5 | `auth.feature › Login ohne CSRF-Token` |
+| PAR-AUTH-05 | `POST /` mit `nickname`, `password` und abweichendem `CSRFtoken` | anon | 401 | – | #5 | `auth.feature › Login mit falschem CSRF-Token` |
 | PAR-AUTH-06 | `POST /` mit Nutzer ohne SQL-Mitglied (LDAP-UID ≠ `members.id`) | anon | Anmeldung abgelehnt wie PAR-AUTH-03 | LDAP-Bind erfolgt, SQL-Abgleich schlägt fehl | #5 | `auth.feature › LDAP-Nutzer ohne Mitgliedssatz` |
 | PAR-AUTH-07 | `GET /?logoff=true` | Mitglied | Sitzung zerstört, Redirect auf Login | – | #5 | `auth.feature › Logout` |
 | PAR-AUTH-08 | Sitzungs-Cookie | alle | `SameSite=Strict`, `Secure` (abschaltbar über Konfiguration); Sitzung wird verworfen, wenn die gespeicherte URI nicht zur Basis passt | – | #5 | `auth.feature › Sitzungs-Cookie-Attribute` |
@@ -98,7 +99,7 @@ Zeichen `" ' < > # % { } | ^ ~ [ ] \`` ergeben im Altsystem 400.
 | ID | Alt-URL / Methode | Rolle, Objektbezug | Erwartetes Ergebnis | Seiteneffekte | Issue | Test |
 |---|---|---|---|---|---|---|
 | PAR-HOME-01 | `GET /` | Mitglied | Mitgliedschaftsstatus aus Rollen 3 ordentlich, 4 außerordentlich, 5 kein, 6 fördernd, 7 Ehren; ohne Rolle „unbestimmt“ plus Link auf das Antragsformular | – | #5 | `home.feature › Mitgliedschaftsstatus` |
-| PAR-HOME-02 | `GET /` | nur Rollen 3, 4, 7 (**bedingt**) | Zählung der Vereinsmitglieder sichtbar; sonst nicht | – | #5 | `home.feature › Mitgliederzahlen nur für Vereinsrollen` |
+| PAR-HOME-02 | `GET /` | Rollen 3, 4, 7 (**bedingt**) | Zählung der Vereinsmitglieder sichtbar; sonst nicht. Die Altlogik wertet das niedrigste Rollenlabel aus (Mischfälle wie 3+5 oder 3+6 zeigen sie nicht); der Paritätstest legt das tatsächliche Verhalten fest | – | #5 | `home.feature › Mitgliederzahlen nur für Vereinsrollen` |
 | PAR-HOME-03 | `GET /` | Mitglied | Eigene Daten (Name, Adresse, Telefon, E-Mail) mit Statussymbol der Mailboxprüfung | Browser ruft MAIL-01 auf | #5, #8 | `home.feature › Eigene Daten mit Mailstatus` |
 | PAR-HOME-04 | `GET /` | Mitglied mit offenen Übergabevorschlägen (**bedingt**) | Hinweis mit Anzahl offener Owner-/Tech-C-Vorschläge an mich | – | #5, #7 | `home.feature › Hinweis auf offene Vorschläge` |
 | PAR-HOME-05 | `GET /` | Mitglied mit Nodes | Statistik je Node/Gerät: online, wenn `last_seen` jünger als 4 h (nicht Mitternacht-Platzhalter); Spalte v4 immer, v6 nur wenn IPv6 vorhanden; Prozent grün >60, orange >30, sonst rot; Summenzeile bei mehr als einer Gruppe | – | #5 | `home.feature › Onlinestatistik` |
@@ -108,21 +109,21 @@ Zeichen `" ' < > # % { } | ^ ~ [ ] \`` ergeben im Altsystem 400.
 
 | ID | Alt-URL / Methode | Rolle, Objektbezug | Erwartetes Ergebnis | Seiteneffekte | Issue | Test |
 |---|---|---|---|---|---|---|
-| PAR-MEM-01 | `GET ?section=member&action=insert` | Admin, Superuser sichtbar laut Menü, schreiben nur Admin (**bedingt**) | Formular Neuanlage | – | #6 | `members.feature › Anlageformular` |
-| PAR-MEM-02 | `POST ?section=member&action=insert` (`do=true`) | Admin | Mitglied angelegt, Erfolgsseite | Reihenfolge: LDAP-Add (uidNumber/gidNumber −1; leeres Passwort → 8 Zeichen generiert), SQL `insertmember(lower(nick), …)`, LDAP `uidNumber/gidNumber := members.id`, Mail „Frontend Zugangsdaten“ (Absender `MEMBER_SUBSCRIBE_MAIL_FROM`; abschaltbar mit `MEMBER_SUBSCRIBE_MAIL`) | #6 | `members.feature › Neuanlage mit LDAP, SQL, ID-Zuordnung und Mail` |
+| PAR-MEM-01 | `GET ?section=member&action=insert` | Admin, Superuser (**bedingt**) | Formular Neuanlage | – | #6 | `members.feature › Anlageformular` |
+| PAR-MEM-02 | `POST ?section=member&action=insert` (`do=true`) | Admin, Superuser | Mitglied angelegt, Erfolgsseite | Reihenfolge: LDAP-Add (uidNumber/gidNumber −1; leeres Passwort → 8 Zeichen generiert), SQL `insertmember(lower(nick), …)`, LDAP `uidNumber/gidNumber := members.id`, Mail „Frontend Zugangsdaten“ (Absender `MEMBER_SUBSCRIBE_MAIL_FROM`; abschaltbar mit `MEMBER_SUBSCRIBE_MAIL`) | #6 | `members.feature › Neuanlage mit LDAP, SQL, ID-Zuordnung und Mail` |
 | PAR-MEM-03 | wie MEM-02, Zuordnung der LDAP-ID scheitert | Admin | Fehler „LDAP-ID konnte nicht zugeordnet werden“, **keine** Mail | LDAP/SQL-Satz bleibt zurück (Teilzustand, wird im Rewrite explizit gemeldet, A-7) | #6 | `members.feature › Fehler bei ID-Zuordnung ohne Mail` |
 | PAR-MEM-04 | `GET ?section=member&action=update` | Mitglied (eigene Daten) | Formular mit eigenen Daten; Passwortfeld nur für die eigene ID; Namen nur für Admin änderbar | – | #6 | `members.feature › Eigenes Profil anzeigen` |
 | PAR-MEM-05 | `POST ?section=member&action=update` | Mitglied (eigen) | Profil gespeichert | LDAP `update_member` (givenName, sn, mail, userPassword), SQL `updatemember(…)` nur nach LDAP-Erfolg | #6 | `members.feature › Eigenes Profil speichern` |
 | PAR-MEM-06 | `GET/POST ?section=member&action=update&id=N` | Admin, beliebiges Mitglied | Vollformular inkl. Namen | wie MEM-05 | #6 | `members.feature › Admin ändert fremdes Profil` |
-| PAR-MEM-07 | wie MEM-06 (`mini=true`) | Superuser, fremdes Mitglied (**bedingt**) | Eingeschränktes Formular: nur Telefon, Mobil, E-Mail änderbar | wie MEM-05, nur diese Felder | #6 | `members.feature › Superuser ändert nur Kontaktfelder` |
+| PAR-MEM-07 | wie MEM-06 (`mini=true`) | Superuser, fremdes Mitglied (**bedingt**) | Eingeschränktes Formular: nur Telefon, Mobil, E-Mail änderbar | wie MEM-05, nur diese Felder; ein mitgesendetes Passwort wird im Altsystem ebenfalls nach LDAP (`userPassword`) geschrieben (Paritätstest legt fest, ob das nur für die eigene ID gilt) | #6 | `members.feature › Superuser ändert nur Kontaktfelder` |
 | PAR-MEM-08 | Rollenfeld im Profil (`USER_ROLES`: `[Label, benötigte Rolle, Rollen-IDs]`) | Mitglied nur selbst; Admin beliebig (**bedingt**) | Checkbox bei einer Rolle, Auswahl bei mehreren; Nicht-Admins nur eigene Rolle; im Impersonationsmodus keine Rollen mit id > 2 | SQL `members_roles` ändern | #6 | `members.feature › Rollendelegation` |
 | PAR-MEM-09 | Admin „Transform me to X“ (`transform=go`) | Admin, Zielmitglied | Sitzungsidentität wechselt, Redirect auf `?section=nodes`; Rückkehr beim Ziel = Ursprungs-ID | Sitzung: `original_id`/`nn`/`fn` | #6 | `members.feature › Impersonation und Rückkehr` |
 | PAR-MEM-10 | „User-ID ändern“ (JS-Prompt) → `GET ?section=member&action=update&id=N` | Admin, Superuser | Springt auf Profil der ID | – | #6 | `members.feature › User-ID ändern` |
-| PAR-MEM-11 | `GET ?section=member&action=delete&id=N` (GET-W) | Admin; Ziel ohne Rollen 1–8, ohne eigene/Tech-C-Nodes, Status leer oder 5, id ≥ 2 | Mitglied gelöscht | LDAP `delete_member`, danach SQL `deletemember` (löscht `members_roles`-Zeilen, dann `members`) | #6 | `members.feature › Löschen` |
+| PAR-MEM-11 | `GET ?section=member&action=delete&id=N` (GET-W) | Admin; Server verweigert bei Rollen 1–8 sowie bei eigenen/Tech-C-Nodes | Mitglied gelöscht | LDAP `delete_member`, danach SQL `deletemember` (löscht `members_roles`-Zeilen, dann `members`) | #6 | `members.feature › Löschen` |
 | PAR-MEM-12 | wie MEM-11 mit Rolle 1–8 oder Node-Bezug | Admin | Abgelehnt mit Meldung, nichts gelöscht | – | #6 | `members.feature › Löschen verweigert` |
 | PAR-MEM-13 | `POST ?section=member&action=search` (`search`, `ingroups`, `offgroups`, `limitresult`) | Admin, Superuser | 301 auf dieselbe URI (Suchparameter in der Sitzung); Treffer ab 3 Zeichen, numerischer ID oder Gruppenfilter | – | #6 | `members.feature › Suche mit Redirect` |
 | PAR-MEM-14 | `GET ?section=member&action=search` | Admin, Superuser | Ergebnisliste; Limit 30 (`MAX_LIMITED`) bzw. 150 ohne Limit (`MAX_NOLIMIT`); Spalten u. a. Status, Admin-/Löschmarken, `#Nodes/#TechC`, geändert/letzter Login/angelegt; Admin-Suche trifft zusätzliche Spalten (u. a. Straße), Superuser-Suche nicht | – | #6 | `members.feature › Suchergebnisse` |
-| PAR-MEM-15 | Löschsymbol in Suchliste | nur Admin, ohne Nodes/Tech-C, Status leer oder 5, id ≥ 2 (**bedingt**) | Symbol sichtbar nur unter diesen Bedingungen | – | #6 | `members.feature › Löschsymbol-Bedingungen` |
+| PAR-MEM-15 | Löschsymbol in Suchliste | nur Admin, ohne Nodes/Tech-C, Status leer oder 5, id ≥ 2 (**bedingt**) | Symbol sichtbar nur unter diesen Bedingungen (reine UI-Bedingung; `id ≥ 2` wird nur hier geprüft, und bei Status 5 zeigt das UI das Symbol, obwohl der Server wegen Rolle 5 verweigert, siehe MEM-11/MEM-12) | – | #6 | `members.feature › Löschsymbol-Bedingungen` |
 | PAR-MEM-16 | Gruppenfilter (`ingroups`/`offgroups`) | Admin, Superuser | Kommagetrennte Rollen-IDs filtern ein bzw. aus | – | #6 | `members.feature › Gruppenfilter` |
 | PAR-MEM-17 | Clientvalidierung (`verifyForm`, `isValidEmail`) | Formulare | Nickname, Namen ≤ 25, Straße ≤ 100, Hausnummer, PLZ, Ort, Telefon/Mobil/Fax, E-Mail ≤ 50, Homepage `https?://`; Servervalidierung muss dieselben Regeln durchsetzen | – | #6 | `members.feature › Feldvalidierung` |
 | PAR-MEM-18 | Zugriff auf fremdes Profil ohne Recht | Mitglied | Verweigert, keine Änderung; Superuser-Sonderfall: Fehlschlag der Mitgliedsprüfung wird still ignoriert (siehe U-2) | – | #6 | `members.feature › Fremdzugriff verweigert` |
@@ -137,8 +138,8 @@ Zeichen `" ' < > # % { } | ^ ~ [ ] \`` ergeben im Altsystem 400.
 | PAR-NODE-04 | `GET ?section=nodes` | Empfänger eines Owner-Vorschlags (**bedingt**) | Abschnitt mit Annehmen/Ablehnen | – | #7 | `nodes.feature › Eingehende Owner-Vorschläge` |
 | PAR-NODE-05 | `GET ?section=nodes&action=insert` | Mitglied | Formular: Name, GPS (Grad/Minuten/Sekunden), Karte; JS wandelt Dezimal ↔ DMS | – | #7 | `nodes.feature › Anlageformular` |
 | PAR-NODE-06 | `POST ?section=nodes&action=insert` (`do=true`) | Mitglied (wird Eigentümer und Tech-C) | Node angelegt; Name `[a-z0-9]([a-z0-9-]{0,23}[a-z0-9])?`, gültiger Domainname `<name>.wien.funkfeuer.at`, eindeutig ohne Groß/Klein | SQL `insertnode` (Eigentümer = Tech-C) | #7 | `nodes.feature › Node anlegen` |
-| PAR-NODE-07 | `GET/POST ?section=nodes&action=update&id=N` | Eigentümer; Admin (**bedingt**) | Formular bzw. Speichern von Name, Koordinaten, Karte | SQL `updatenode` | #7 | `nodes.feature › Node ändern` |
-| PAR-NODE-08 | `GET ?section=nodes&action=delete&id=N` (GET-W) | Eigentümer, Node ohne Geräte/IPv6 | Node gelöscht samt Vorschlagszeile | SQL `deletenode` + Löschung der Vorschlagszeile (negierte ID) | #7 | `nodes.feature › Node löschen` |
+| PAR-NODE-07 | `GET/POST ?section=nodes&action=update&id=N` | Eigentümer oder Tech-C (kein Admin-Sonderrecht) | Formular bzw. Speichern von Name, Koordinaten, Karte | SQL `updatenode` | #7 | `nodes.feature › Node ändern` |
+| PAR-NODE-08 | `GET ?section=nodes&action=delete&id=N` (GET-W) | Eigentümer oder Tech-C; Node ohne Geräte/IPv6 | Node gelöscht samt Vorschlagszeile | SQL `deletenode` + Löschung der Vorschlagszeile (negierte ID) | #7 | `nodes.feature › Node löschen` |
 | PAR-NODE-09 | wie NODE-08 mit Geräten oder IPv6 | Eigentümer | Kein Löschsymbol; direkter Aufruf wird abgelehnt (FK `RESTRICT`) | – | #7 | `nodes.feature › Löschen mit Abhängigkeiten verweigert` |
 | PAR-NODE-10 | `GET/POST ?section=nodes&action=proposeOwner&id=N` (Feld `id_tech_c` = ID, E-Mail oder Nickname; Checkbox `stay_tech_c`, Standard an) | nur Eigentümer | Vorschlag angelegt; Erfolgstext mit `mailto:`-Link | Vorschlagszeile in `nodes` mit negierter ID. App versendet **keine** Mail | #7 | `nodes.feature › Eigentümerwechsel vorschlagen` |
 | PAR-NODE-11 | `proposeTechC` analog | Eigentümer | Tech-C-Vorschlag angelegt | wie NODE-10 | #7 | `nodes.feature › Tech-C vorschlagen` |
@@ -153,11 +154,11 @@ Zeichen `" ' < > # % { } | ^ ~ [ ] \`` ergeben im Altsystem 400.
 | ID | Alt-URL / Methode | Rolle, Objektbezug | Erwartetes Ergebnis | Seiteneffekte | Issue | Test |
 |---|---|---|---|---|---|---|
 | PAR-DEV-01 | `GET ?section=devices&id_nodes=N` | Eigentümer/Tech-C des Nodes | Tabelle der IPv4-Geräte inkl. v642 (blau), IPv6-Tabelle, Hilfetabellen per JS ein-/ausblendbar; Links `http://<ip>/` und `http://[<ip6>]/` | – | #9 | `devices.feature › Geräteübersicht` |
-| PAR-DEV-02 | `POST ?section=devices&action=insert` (`do=true`) | Eigentümer/Tech-C | Gerät mit nächster freier IPv4 (Pool `main`) angelegt; Name-Regeln wie NODE-06, je Node eindeutig ohne Groß/Klein; Flags `dns_forward`, `dns_reverse`, `smokeping`, `nodemaster` | SQL `insertdevice`, `getnextfreeip` | #9 | `devices.feature › Gerät anlegen` |
+| PAR-DEV-02 | `POST ?section=devices&action=insert` (`do=true`) | Eigentümer/Tech-C | Gerät mit nächster freier IPv4 (Pool `main`) angelegt; Name-Regeln wie NODE-06, je Node eindeutig ohne Groß/Klein; Felder Name, Antenne, Hardware, SSID, MAC, `smokeping` (DNS-Flags und `nodemaster` gibt es nur bei Update, v642 und IPv6) | SQL `insertdevice`, `getnextfreeip` | #9 | `devices.feature › Gerät anlegen` |
 | PAR-DEV-03 | `GET/POST ?section=devices&action=update&id=N` | Eigentümer/Tech-C | Gerät geändert | SQL `updatedevice` | #9 | `devices.feature › Gerät ändern` |
-| PAR-DEV-04 | `GET ?section=devices&action=delete&id=N` (GET-W) | Eigentümer/Tech-C | Gerät gelöscht, IPv4 wieder frei | SQL `deletedevice` (`ips.id_devices` auf NULL per FK) | #9 | `devices.feature › Gerät löschen` |
+| PAR-DEV-04 | `GET ?section=devices&action=delete&id=N` (GET-W) | Eigentümer/Tech-C | Gerät gelöscht, IPv4 wieder frei; am Gerät gebundene IPv6-Zeilen bleiben am Node erhalten | SQL: zuerst `UPDATE ip6` (`id_devices` NULL, `id_nodes` = Node des Geräts), dann `deletedevice` (`ips.id_devices` auf NULL per FK) | #9 | `devices.feature › Gerät löschen` |
 | PAR-DEV-05 | `POST ?section=devices&action=move` (`what=IPv4`, Ziel `id_nodes` aus eigenen Nodes) | Eigentümer/Tech-C von Quelle und Ziel | Gerät wechselt den Node, `nodemaster=false`; zugehörige IPv6 bleiben am alten Node | SQL Update `devices` | #9 | `devices.feature › Gerät verschieben` |
-| PAR-DEV-06 | `move6` | wie DEV-05 | IPv6-Eintrag wechselt den Node | SQL Update `ip6` | #9 | `devices.feature › IPv6 verschieben` |
+| PAR-DEV-06 | `GET ?section=devices&action=move6&id=N` (Formular), `POST action=move` mit `what=IPv6` | wie DEV-05 | IPv6-Eintrag wechselt den Node und löst sich vom Gerät; Adresse wird mit `checkIp6Range` geprüft | SQL Update `ip6` | #9 | `devices.feature › IPv6 verschieben` |
 | PAR-DEV-07 | Verweise auf Smokeping | Geräte mit `smokeping=true` | Links `/olsr2/smokeping/?target=<node>.<device>` und `smokeping/?target=…`; bei v642 Suffix `__v4` (extern, siehe EXT-03) | – | #9 | `devices.feature › Smokeping-Links` |
 | PAR-IP6-01 | `POST ?section=ip6&action=insert` | Eigentümer/Tech-C | IPv6-Eintrag an Node (`n-<id>`) oder Gerät (`d-<id>`); Adresse nach `checkIp6Range` (Modus 1 EUI-64 `2a02:61:0:ff:`, Modus 4 Userblock `2a02:61:<hex Node-ID>:`) | SQL `insertip6` (Adresse normalisiert per `abbrev`) | #9 | `ip6.feature › IPv6 anlegen` |
 | PAR-IP6-02 | `POST ?section=ip6&action=update&id=N` | Eigentümer/Tech-C | Name, Flags, Antenne/Hardware/SSID/MAC, Zuordnung geändert; Adresse im UI gesperrt (Server akzeptiert sie im Altsystem, U-1) | SQL `updateip6` | #9 | `ip6.feature › IPv6 ändern` |
@@ -240,7 +241,7 @@ MeetMe ist im Menü auskommentiert und deshalb **kein** Link (siehe EXCL-01).
 
 | Nr. | Altverhalten | Rewrite | Betroffene IDs |
 |---|---|---|---|
-| A-1 | Löschen, Rückgabe, Annehmen, Ablehnen, Verschieben usw. per GET | Alle Schreibaktionen per POST mit CSRF-Token; alte GET-URLs lesen nur bzw. leiten auf die Bestätigungsseite | alle „GET-W“ |
+| A-1 | Löschen, Rückgabe, Annehmen, Ablehnen usw. per GET | Alle Schreibaktionen per POST mit CSRF-Token; alte GET-URLs lesen nur bzw. leiten auf die Bestätigungsseite | alle „GET-W“ |
 | A-2 | Übergabeentscheidung (Annehmen/Ablehnen) auch durch Eigentümer/Tech-C des alten Nodes (`checkRights(-id)`) | Nur der Empfänger entscheidet; Eigentümer kann nur vorschlagen/zurückziehen | NODE-12, NODE-13, NODE-15 |
 | A-3 | Impersonation: Rechte unklar vermischt | Admin behält Adminrechte, Objektrechte folgen der wirksamen Mitglieds-ID, keine Zielrollen, `USER_ROLES`-Sperre für Rollen-ID > 2 bleibt, Wechsel ist sichtbar und umkehrbar | MEM-08, MEM-09, NAV-07 |
 | A-4 | Parameter teils per String-Verkettung in SQL (u. a. Gruppenfilter der Suche) | Alle Parameter gebunden; Gruppenfilter als validierte ID-Liste | MEM-14, MEM-16 |
@@ -304,7 +305,9 @@ werden. Wo „Blocker“ steht, darf #11 nicht ohne Antwort in Produktion gehen.
 | O-10 | Rollback-Stand: Datenbank- und LDAP-Schreibzugriffe nach Cutover und Rückweg | #11 | Ja |
 | O-11 | Welche alten Lese-URLs und Mail-Links müssen bestehen bleiben (A-6)? | Weiterleitungsliste | Nein |
 
-## 10. Abnahmeregel für #10
+## 10. Abnahmeregel für #10 (Vorschlag)
+
+Vorschlag zur Abstimmung in #10; nicht Teil der Vorgaben aus Issue #2.
 
 1. Jede Pflicht-/bedingt-Zeile aus 3.1–3.6 und 5 hat einen grünen benannten
    Test; Negativtests für 3.3–3.5 sind enthalten.
