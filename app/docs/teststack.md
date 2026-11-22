@@ -11,6 +11,9 @@ oder Produktion. Alle Werte und Daten sind synthetisch.
 | `make rewrite-up` | Baut das PHP-8.4-Image, installiert `composer.lock` nach `app/vendor/` (eigener Container mit Netz), startet nginx/PHP-FPM, PostgreSQL 13, OpenLDAP und Mailpit und wartet auf „healthy“. |
 | `make rewrite-test` | Startet bei Bedarf den Stack und führt die komplette PHPUnit-Suite aus (`stack` + `http`). |
 | `make rewrite-probe` | Nur die Suite `stack`: Seeds, DB, LDAP, Mailpit, kein Egress. Das ist die Probe für den späteren CI-Stack. |
+| `make rewrite-lint` | `composer validate --strict`, PHP-/Twig-/YAML-Lint, PHPStan (Level 6, `app/phpstan.neon.dist`) und actionlint (Image per Digest gepinnt). |
+| `make rewrite-audit` | `composer audit --locked` gegen das Lockfile (braucht Internet, läuft im Container `composer`). |
+| `make rewrite-qa` | Alles der CI: `rewrite-lint`, `rewrite-audit`, `rewrite-test`. |
 | `make rewrite-down` | Stoppt den Stack und löscht seine Volumes. Der nächste Start ist frisch. |
 
 Erreichbar auf dem Host (nur `127.0.0.1`): App `http://127.0.0.1:18480/wien/` (`REWRITE_HTTP_PORT`),
@@ -142,3 +145,14 @@ Suite `stack` ist die Probe: Sie prüft PostgreSQL 13, Rollen-IDs, Pools, DBAL-R
 `uidNumber`↔`members.id`, Mailversand nach Mailpit, Seed-Summen und fehlenden Egress. Ohne den internen Netzwerk-Schutz
 des lokalen Stacks muss der CI-Job die Egress-Sperre selbst sicherstellen (`NoEgressTest`). Die Suite `http` braucht
 zusätzlich nginx/PHP-FPM wie in `compose.rewrite.yaml`.
+
+## CI (GitHub Actions)
+
+`.github/workflows/rewrite-qa.yml` läuft bei Pull Requests und Pushes auf `main` und ist per `workflow_call` für den
+späteren Release-Workflow wiederverwendbar (veröffentlicht selbst nichts). Drei Jobs rufen dieselben Make-Ziele wie lokal auf:
+`static` (`make rewrite-lint`), `audit` (`make rewrite-audit`), `test` (`make rewrite-test`, der komplette Stack mit
+PostgreSQL 13, OpenLDAP, Mailpit, nginx/PHP-FPM und echten DBAL-/LDAP-/HTTP-Wegen). Bei einem Fehlschlag steht die
+Reproduktion (`make …`) als Annotation im Lauf. Es gibt keine Secrets, `permissions: contents: read`, Actions sind auf
+Commit-SHAs gepinnt, die Testdienste liegen im internen Netz ohne Egress. Fehlschläge werden weder übersprungen noch zu Warnungen herabgestuft.
+
+Die Pflicht-Checks als Branch-Regel (Required status checks `static`, `audit`, `test`) setzen Maintainer mit Admin-Recht in den Repository-Einstellungen.
