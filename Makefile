@@ -5,10 +5,11 @@ REWRITE = docker compose -p redeemer-rewrite -f compose.rewrite.yaml
 export REWRITE_UID ?= $(shell id -u)
 export REWRITE_GID ?= $(shell id -g)
 
-# Builds the image, installs the locked dependencies and starts nginx/PHP-FPM, PostgreSQL 13, OpenLDAP and Mailpit
+# Builds the image, installs the locked dependencies, clears the compiled container and starts nginx/PHP-FPM, PostgreSQL 13, OpenLDAP and Mailpit
 rewrite-up:
 	$(REWRITE) build php
 	$(REWRITE) run --rm composer composer install --no-interaction --prefer-dist
+	$(REWRITE) run --rm --no-deps tools sh -c 'rm -rf /var/cache/redeemer/*'
 	$(REWRITE) up -d --wait nginx
 	@echo "App:     http://127.0.0.1:$${REWRITE_HTTP_PORT:-18480}/wien/"
 	@echo "Mailpit: http://127.0.0.1:$${REWRITE_MAIL_UI_PORT:-18481}/"
