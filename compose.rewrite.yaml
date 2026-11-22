@@ -16,6 +16,10 @@ x-app-env: &app-env
   LDAP_SERVICE_PASSWORD: rewrite-test-only
   MAILER_DSN: smtp://mail:1025
   MAIL_FROM: redeemer@example.test
+  MAIL_FROM_NAME: Redeemer Test
+  PORTAL_URL: https://portal.example.test/wien/
+  MEMBER_SUBSCRIBE_MAIL: "1"
+  USER_ROLES: '{"admin":["Admin",1,"1"],"superuser":["Superuser",1,"2"],"membership":["Mitgliedschaft",3,"3,4,5"],"friend":["Förderer",3,"6"]}'
   SESSION_COOKIE_SECURE: "0"
   SESSION_COOKIE_PATH: /wien/
   SESSION_SAVE_PATH: /var/lib/redeemer/sessions

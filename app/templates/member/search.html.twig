@@ -1,0 +1,46 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Mitglieder suchen{% endblock %}
+
+{% block body %}
+    <h1>Mitglieder suchen</h1>
+    {% if messages %}
+        <div role="alert">{% for message in messages %}<p>{{ message }}</p>{% endfor %}</div>
+    {% endif %}
+    {% for field, error in errors %}<p class="error">{{ error }}</p>{% endfor %}
+    {% if rows is not null %}
+        <p>{{ rows|length >= limit ? 'Maximal ' ~ limit ~ ' Treffer werden angezeigt.' : rows|length ~ ' Treffer gefunden.' }}</p>
+        <table data-results>
+            <thead>
+                <tr><th>ID</th><th>Nickname</th><th>Name</th><th>E-Mail</th><th>Aktion</th><th>Member</th><th>#Nodes/#TechC</th><th>geändert</th><th>letzter Login</th><th>angelegt</th></tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                    {% set state = row.state ?? '' %}
+                    <tr data-member-id="{{ row.id }}">
+                        <td><a href="{{ path('app_home', {section: 'member', action: 'update', id: row.id}) }}">{{ row.id }}</a></td>
+                        <td>{{ row.nickname }}</td>
+                        <td>{{ row.firstname }} {{ row.lastname }}</td>
+                        <td>{{ row.email }} <span data-mail-status data-member-id="{{ row.id }}" data-address="{{ row.email }}"></span></td>
+                        <td>
+                            {% if mayDelete and row.nodes + row.techc == 0 and (state == '' or state == 5) and row.id >= 2 %}
+                                <a href="{{ path('app_home', {section: 'member', action: 'delete', id: row.id}) }}" data-action="delete">Löschen</a>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if state != '' %}{{ {3: 'Ord.', 4: 'AO', 5: 'Kein', 6: 'Förd.'}[state] ?? state }}{% endif %}
+                            {% if row.admin == 1 %}<span style="color: red">Admin</span>{% elseif row.admin == 2 %}<span style="color: red">SU</span>{% endif %}
+                            {% if row.deleteme %}<span style="color: blue">Del</span>{% endif %}
+                        </td>
+                        <td>{{ row.nodes }}/{{ row.techc }}</td>
+                        <td>{{ row.changed ? row.changed|date('d.m.Y') : '' }}</td>
+                        <td>{{ row.last_login ? row.last_login|date('d.m.Y') : '' }}</td>
+                        <td>{{ row.created ? row.created|date('d.m.Y') : '' }}</td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="10">Keine Treffer</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+{% endblock %}

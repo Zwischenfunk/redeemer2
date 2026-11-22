@@ -11,7 +11,7 @@ use Symfony\Component\Security\Core\User\UserProviderInterface;
 /** @implements UserProviderInterface<MemberIdentity> */
 final readonly class MemberProvider implements UserProviderInterface
 {
-    public function __construct(private Connection $db)
+    public function __construct(private Connection $db, private Impersonation $impersonation)
     {
     }
 
@@ -38,7 +38,14 @@ final readonly class MemberProvider implements UserProviderInterface
             throw new UnsupportedUserException();
         }
 
-        return $this->loadUserByIdentifier($user->getUserIdentifier());
+        $identity = $this->loadUserByIdentifier($user->getUserIdentifier());
+        $target = $this->impersonation->target();
+        if (null === $target || !in_array('ROLE_ADMIN', $identity->getRoles(), true)) {
+            return $identity;
+        }
+        $nickname = $this->db->fetchOne('SELECT nickname FROM members WHERE id = ?', [$target]);
+
+        return is_string($nickname) ? $identity->actingAs($target, $nickname) : $identity;
     }
 
     public function supportsClass(string $class): bool

@@ -16,7 +16,7 @@
                 <a href="{{ path('app_home', {section: 'nodes'}) }}">Nodes</a>
                 <a href="https://voip.funkfeuer.at/extensions/">VoIP</a>
                 <a href="https://voip.funkfeuer.at/phonebook/">Phonebook</a>
-                <form method="post" action="{{ path('app_home', {logoff: 'true'}) }}">
+                <form method="post" action="{{ path('app_home', {logoff: 'true'}) }}" data-form="logout">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token('browser_logout') }}">
                     <button type="submit">Logout</button>
                 </form>
@@ -25,11 +25,36 @@
         </nav>
     </header>
     <main>
+        {% if is_granted('ROLE_MEMBER') and app.user.impersonating %}
+            <div class="impersonation" data-impersonating="{{ app.user.effectiveNickname }}" style="background: gold">
+                Angemeldet als {{ app.user.nickname }}, aktiv als <strong style="color: red">{{ app.user.effectiveNickname }}</strong>
+                <form method="post" action="{{ path('app_home', {section: 'member', action: 'update', id: app.user.originalId}) }}" data-form="impersonation-return">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('member_transform') }}">
+                    <input type="hidden" name="transform" value="go">
+                    <button type="submit">Zurück zu {{ app.user.nickname }}</button>
+                </form>
+            </div>
+        {% endif %}
         {% if is_granted('ROLE_ADMIN') or is_granted('ROLE_SUPERUSER') %}
+            {% set saved = app.session.get('member_search', {}) %}
             <nav aria-label="Mitgliederverwaltung">
                 <strong>Mitgliederverwaltung: {{ is_granted('ROLE_ADMIN') ? 'Admin' : 'Superuser' }}</strong>
                 <a href="{{ path('app_home', {section: 'member', action: 'insert'}) }}">Benutzer anlegen</a>
                 <a href="{{ path('app_home', {section: 'member', action: 'search'}) }}">Mitglieder suchen</a>
+                <form method="post" action="{{ path('app_home', {section: 'member', action: 'search'}) }}" data-form="member-search">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('member_search') }}">
+                    <input name="search" value="{{ saved.term|default('') }}" placeholder="Suche" maxlength="100" aria-label="Suche">
+                    <input name="ingroups" value="{{ (saved.inGroups|default([]))|join(',') }}" placeholder="Gruppen" size="4" aria-label="In Gruppen">
+                    <input name="offgroups" value="{{ (saved.offGroups|default([]))|join(',') }}" placeholder="nicht" size="4" aria-label="Nicht in Gruppen">
+                    <label><input type="checkbox" name="limitresult" value="1" {{ (saved.limited ?? true) ? 'checked' }}> Limit</label>
+                    <button type="submit">Suchen</button>
+                </form>
+                <form method="get" action="{{ path('app_home') }}" data-form="member-goto">
+                    <input type="hidden" name="section" value="member">
+                    <input type="hidden" name="action" value="update">
+                    <input name="id" type="number" min="1" placeholder="User-ID" aria-label="User-ID">
+                    <button type="submit">User-ID ändern</button>
+                </form>
             </nav>
         {% endif %}
         {% block body %}{% endblock %}

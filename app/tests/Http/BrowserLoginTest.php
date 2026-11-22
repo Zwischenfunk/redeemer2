@@ -125,12 +125,12 @@ final class BrowserLoginTest extends StackTestCase
                 self::assertSame(403, $this->request('GET', $admin, $cookies)->getStatusCode());
             } else {
                 self::assertStringContainsString('Mitgliederverwaltung: '.$role, $home);
-                self::assertSame(404, $this->request('GET', $admin, $cookies)->getStatusCode());
+                self::assertSame(200, $this->request('GET', $admin, $cookies)->getStatusCode());
             }
             $html = $this->request('GET', $profile, $cookies)->getContent();
             self::assertStringContainsString($nickname.'@example.test', $html);
-            self::assertSame(403, $this->request('GET', $profile.'&id=9', $cookies)->getStatusCode());
-            self::assertSame(405, $this->request('POST', $profile, $cookies, ['firstname' => 'Ignored'])->getStatusCode());
+            self::assertSame(null === $role ? 403 : 200, $this->request('GET', $profile.'&id=9', $cookies)->getStatusCode());
+            self::assertSame(403, $this->request('POST', $profile, $cookies, ['firstname' => 'Ignored'])->getStatusCode());
         } finally {
             $this->db()->executeStatement('UPDATE members SET last_login = ? WHERE id = ?', [$before, $id]);
         }

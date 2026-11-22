@@ -1,0 +1,14 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block body %}
+    <h1>{{ title }}</h1>
+    <div role="{{ outcome.isDone ? 'status' : 'alert' }}" data-status="{{ outcome.status.name|lower }}">
+        {% for message in outcome.messages %}<p>{{ message }}</p>{% endfor %}
+    </div>
+    {% if memberId %}
+        <p><a href="{{ path('app_home', {section: 'member', action: 'update', id: memberId}) }}">Zum Profil (ID {{ memberId }})</a></p>
+    {% endif %}
+    <p><a href="{{ path('app_home', {section: 'member', action: 'search'}) }}">Mitglieder suchen</a></p>
+{% endblock %}
