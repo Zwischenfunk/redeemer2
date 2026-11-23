@@ -1,0 +1,44 @@
+{% extends 'base.html.twig' %}
+
+{% set title = node ? 'Node bearbeiten' : 'Node anlegen' %}
+{% set coordinates = {
+    gps_lat_deg: 'Latitude Grad', gps_lat_min: 'Latitude Minuten', gps_lat_sec: 'Latitude Sekunden',
+    gps_lon_deg: 'Longitude Grad', gps_lon_min: 'Longitude Minuten', gps_lon_sec: 'Longitude Sekunden'
+} %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block body %}
+    <h1>{{ title }}</h1>
+    {% if message %}
+        <div role="alert" data-status="rejected"><p>{{ message }}</p></div>
+    {% endif %}
+    <form method="post" action="{{ path('app_home', node ? {section: 'nodes', action: 'update', id: node.id} : {section: 'nodes', action: 'insert'}) }}" data-form="{{ node ? 'node-update' : 'node-insert' }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token(node ? 'node_update' : 'node_insert') }}">
+        <dl>
+            <dt><label for="f-name">Name</label></dt>
+            <dd>
+                <input id="f-name" name="name" value="{{ values.name }}" maxlength="25" required {{ errors.name is defined ? 'aria-invalid="true"' }}>
+                {% if errors.name is defined %}<span class="error">{{ errors.name }}</span>{% endif %}
+                <br><small>Kurzer Name aus a-z, 0-9 und Bindestrich, etwa Straßenkürzel mit Hausnummer; bitte keine Wiener Postleitzahl.</small>
+            </dd>
+            {% for field, label in coordinates %}
+                <dt><label for="f-{{ field }}">{{ label }}</label></dt>
+                <dd>
+                    <input id="f-{{ field }}" name="{{ field }}" value="{{ values[field] }}" inputmode="decimal" {{ errors[field] is defined ? 'aria-invalid="true"' }}>
+                    {% if errors[field] is defined %}<span class="error">{{ errors[field] }}</span>{% endif %}
+                </dd>
+            {% endfor %}
+            {# Helpers only: without a name they are not submitted. assets/nodes.js keeps them in step with the fields above. #}
+            <dt><label for="f-lat">oder Latitude dezimal</label></dt>
+            <dd><input id="f-lat" data-decimal="lat" inputmode="decimal"></dd>
+            <dt><label for="f-lon">Longitude dezimal</label></dt>
+            <dd><input id="f-lon" data-decimal="lon" inputmode="decimal"></dd>
+            <dt><label for="f-map">Map</label></dt>
+            <dd><input id="f-map" type="checkbox" name="map" value="on" {{ values.map ? 'checked' }}> <small>Node auf der Karte anzeigen (setzt GPS-Koordinaten voraus)</small></dd>
+        </dl>
+        <button type="submit">{{ node ? 'Ändern' : 'Hinzufügen' }}</button>
+        <a href="{{ path('app_home', {section: 'nodes'}) }}">Abbrechen</a>
+    </form>
+    <script src="{{ asset('assets/nodes.js') }}" defer></script>
+{% endblock %}

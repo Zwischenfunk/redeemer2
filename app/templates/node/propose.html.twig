@@ -1,0 +1,29 @@
+{% extends 'base.html.twig' %}
+
+{% set owner = kind.value == 'owner' %}
+{% set title = owner ? 'Node weitergeben' : 'Tech-Contact einladen' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block body %}
+    <h1>{{ title }}</h1>
+    {% if error %}
+        <div role="alert" data-status="rejected"><p>{{ error }}</p></div>
+    {% endif %}
+    {% if pending %}
+        <p>Für diesen Node gibt es bereits einen offenen Vorschlag. Ein neuer Vorschlag ersetzt ihn.</p>
+    {% endif %}
+    <form method="post" action="{{ path('app_home', {section: 'nodes', action: owner ? 'proposeOwner' : 'proposeTechC', id: node.id}) }}" data-form="node-propose">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('node_propose') }}">
+        <p>
+            <label for="f-id_tech_c">{{ owner ? 'Neuer Besitzer' : 'Tech-Contact' }} für {{ node.name }}</label>
+            <input id="f-id_tech_c" name="id_tech_c" value="{{ input }}" maxlength="100" required {{ error ? 'aria-invalid="true"' }}>
+        </p>
+        {% if owner %}
+            <p><label><input type="checkbox" name="stay_tech_c" value="on" {{ stay ? 'checked' }}> Tech-Contact bleiben</label></p>
+        {% endif %}
+        <button type="submit">Vorschlagen</button>
+        <a href="{{ path('app_home', {section: 'nodes'}) }}">Abbrechen</a>
+    </form>
+    <p><small>Member-ID, Nickname oder E-Mail-Adresse des Benutzers eintragen. Der Vorschlag gilt erst, wenn dieser Benutzer ihn in seinem Account annimmt.</small></p>
+{% endblock %}

@@ -74,7 +74,7 @@ Controller prüfen `ROLE_MEMBER`, `ROLE_ADMIN` oder `ROLE_SUPERUSER` serverseiti
 privilegierten SQL-Rollen gewinnt ID 1 wie im Referenzstand; gemeinsame Aktionen prüfen Admin **oder**
 Superuser. Fachliche Objektberechtigungen prüfen zusätzlich die effektive ID; ein Menüpunkt ist kein
 Berechtigungsnachweis. Mitglieder-/Identitätswechsel (#6), Nodes (#7), Mailboxstatus (#8) und Geräte (#9)
-nutzen diesen Vertrag; Mitglieder und Identitätswechsel gibt es seit #6, die übrigen Aktionen folgen.
+nutzen diesen Vertrag; Mitglieder und Identitätswechsel gibt es seit #6, Nodes seit #7, die übrigen Aktionen folgen.
 
 Der Browser-Login verwendet die an die Session gebundene Formular-CSRF-Prüfung zusätzlich zum
 Legacy-Cookie `CSRFtoken`. Nur nach LDAP- und SQL-Abgleich wird `member_login` ausgeführt und der
@@ -82,12 +82,30 @@ Legacy-Cookie `CSRFtoken`. Nur nach LDAP- und SQL-Abgleich wird `member_login` a
 übernimmt keine Legacy-Sessions. `POST /wien/?logoff=true` mit separatem CSRF-Token meldet ab,
 `GET` meldet nicht ab. Es gibt keinen sitzungslosen Login.
 
-## Mutierende Tests (#6)
+## Node-Objektzugriff und Schreibkonvention (#7, Übergabe an #9)
 
-Tests, die Mitglieder ändern, erweitern `tests/Http/HttpStackTestCase`: Es sichert `members`, `members_roles`, die
-Sequenz `members_id_seq` und alle LDAP-`posixAccount`-Einträge und stellt sie in `tearDown` wieder her; Mailpit wird
-vorher geleert. `nodes` wird nicht wiederhergestellt: Tests dürfen sie nicht ändern, weil der Trigger `changed` setzt und
-`SeedDigestTest` bricht. Kein Seed-Mitglied ist löschbar (Mitglied 6 ist Tech-C des Vorschlags −1); Löschtests legen
+`App\Node\NodeAccess` ist der gemeinsame Weg zu einem Node, auch für Geräte und Adressen:
+
+* `managed($actor, $nodeId)` liefert den Node, wenn das wirksame Mitglied (`Actor::effectiveId`) Eigentümer
+  (`nodes.id_members`) oder Tech-C (`nodes.id_tech_c`) ist; `owned(…)` verlangt den Eigentümer; `node(…)` prüft kein Recht.
+  Unbekannte oder nicht positive IDs ergeben `NotFound` (404), fehlendes Recht `Denied` (403). Admins haben kein Sonderrecht.
+* Nur positive IDs sind Nodes. Zeilen mit negativer ID sind Übergabevorschläge (`App\Node\Proposal`, gelesen über
+  `Handover::pending`) und werden nie als Node angesprochen, gelistet oder gezählt: Abfragen auf `nodes` brauchen `id > 0`.
+* Schreibkonvention: Transaktion öffnen (`Connection::transactional`), als Erstes den Node mit `lock: true` holen
+  (`SELECT … FOR UPDATE`, ohne Transaktion `LogicException`), dann prüfen, dann schreiben. Die Sperre lässt gleichzeitige
+  Schreiber desselben Nodes warten; Prüfung und Schreiben sehen denselben Eigentümer, Tech-C und Bestand. Reihenfolge der
+  Sperren: erst der Node, dann abhängige Zeilen (Vorschlag, Geräte, Adressen). Eine verletzte Vorbedingung wirft
+  `App\Node\Rejected` und rollt damit zurück. `NodeWriteTest` belegt die Sperre für jede Schreibaktion.
+* Ein Node ist nur ohne Geräte und ohne IPv6-Zeilen löschbar (`Nodes::deletable`, dahinter die Fremdschlüssel).
+
+## Mutierende Tests (#6, #7)
+
+Tests, die Mitglieder oder Nodes ändern, erweitern `tests/Http/HttpStackTestCase` (Node-Tests über `NodeTestCase`): Es
+sichert `members`, `members_roles`, `nodes`, die Sequenzen `members_id_seq` und `nodes_id_seq` und alle
+LDAP-`posixAccount`-Einträge und stellt sie in `tearDown` mit abgeschalteten Triggern wieder her; Mailpit wird vorher
+geleert. `devices`, `ips` und `ip6` werden nicht wiederhergestellt (#9 ergänzt `TABLES`, abhängige Tabellen zuerst); bis
+dahin dürfen Tests sie nur in einer zurückgerollten Transaktion ändern, sonst bricht `SeedDigestTest`. Kein Seed-Mitglied
+ist löschbar (Mitglied 6 ist Tech-C des Vorschlags −1); Löschtests legen
 daher ein neues Mitglied an. `tests/Http/Browser` ist ein Cookie-Client, Formulare tragen `data-form="…"` und `_csrf_token`.
 
 ## Seeds und Fixture-IDs

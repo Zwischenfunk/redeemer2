@@ -32,7 +32,8 @@
             und {{ counts.honorary }} {{ counts.honorary == 1 ? 'Ehrenmitglied' : 'Ehrenmitglieder' }}.</p>
     {% endif %}
     {% if proposals > 0 %}
-        <p>Du hast {{ proposals }} {{ proposals == 1 ? 'offenen Vorschlag' : 'offene Vorschläge' }} für einen Knoteninhaber-/Tech-C-Wechsel.</p>
+        <p>Du hast {{ proposals }} {{ proposals == 1 ? 'offenen Vorschlag' : 'offene Vorschläge' }} für einen Knoteninhaber-/Tech-C-Wechsel:
+            <a href="{{ path('app_home', {section: 'nodes'}) }}">ansehen und entscheiden</a>.</p>
     {% endif %}
     {% if stats %}
         {% set show_ipv6 = stats|filter(row => row.v6 > 0)|length > 0 %}

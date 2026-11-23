@@ -247,7 +247,7 @@ MeetMe ist im Menü auskommentiert und deshalb **kein** Link (siehe EXCL-01).
 | A-3 | Impersonation: Rechte unklar vermischt | Admin behält Adminrechte, Objektrechte folgen der wirksamen Mitglieds-ID, keine Zielrollen, `USER_ROLES`-Sperre für Rollen-ID > 2 bleibt, Wechsel ist sichtbar und umkehrbar | MEM-08, MEM-09, NAV-07 |
 | A-4 | Parameter teils per String-Verkettung in SQL (u. a. Gruppenfilter der Suche) | Alle Parameter gebunden; Gruppenfilter als validierte ID-Liste | MEM-14, MEM-16 |
 | A-5 | v642-Änderung kann das Gerät samt IPv6 neu erzeugen und verliert Geräte-ID und `nodemaster` | Änderung bricht mit klarer Meldung ab, solange weitere IPv6-Einträge am Gerät hängen | V642-03 |
-| A-6 | Alte Lese-URLs und Mail-Links | Nur ausgewählt abgebildet (Liste in #5/#7; alles andere 404) | NAV-*, NODE-10 |
+| A-6 | Alte Lese-URLs und Mail-Links | Nur ausgewählt abgebildet (Liste in #5/#7, für Nodes in Abschnitt 7.3; alles andere 404) | NAV-*, NODE-10 |
 | A-7 | LDAP/DB-Teilfehler bleiben teils still (Teilzustand) | Teilfehler werden explizit gemeldet; keine Mail, wenn die LDAP-ID-Zuordnung scheitert (wie bisher) | MEM-02, MEM-03, MEM-05, MEM-11 |
 
 Die Abweichungen betreffen Methode, Rechtekreis und Fehlerbehandlung, nicht
@@ -261,7 +261,7 @@ Altverhalten ohne Entscheidung (Abschnitt 7.1) wird bis zu einer Entscheidung
 |---|---|---|
 | U-1 | Server akzeptiert beim IPv6-Update eine geänderte Adresse, das UI sperrt das Feld (IP6-02) | Paritätstest legt das tatsächliche Altverhalten fest; Änderung nur per Entscheidung im PR von #9 |
 | U-2 | Superuser: Fehlschlag der Mitgliedsrechteprüfung wird still ignoriert (MEM-18) | **Entschieden in #6:** Felder oder Rollengruppen außerhalb des erlaubten Satzes ergeben 403, nichts wird still verworfen (`mini` und `_csrf_token` sind erlaubt) |
-| U-3 | Vorschlag wird als `nodes`-Zeile mit negierter ID gespeichert (NODE-10/11) | Speicherform ist Implementierungsdetail; sichtbares Verhalten und DB-Schema bleiben kompatibel (O-8) |
+| U-3 | Vorschlag wird als `nodes`-Zeile mit negierter ID gespeichert (NODE-10/11) | **Entschieden in #7:** Die Speicherform bleibt unverändert (Abschnitt 7.3), damit Alt- und Neusystem dieselben Zeilen lesen; das DB-Schema bleibt kompatibel (O-8) |
 
 ### 7.2 Umsetzung in #6 (Mitglieder, Delegation, Impersonation, Reset)
 
@@ -284,13 +284,63 @@ Festlegungen, die über die Matrix hinausgehen:
   Fehlt Cookie oder Feld: 406; Abweichung: 401. Angemeldete erhalten für `pwdreset` 404 (GET) bzw. 405 (POST).
   Es gibt **kein Rate-Limit**; das ist ein offener Betriebspunkt.
 - **Impersonation:** Sitzungsschlüssel `impersonated_member_id`; Rechte folgen der Ursprungsrolle, Objektbezug der wirksamen
-  ID, nur für Admins (A-3). Der Wechsel leitet nach `?section=nodes`, die Seite entsteht in #7 (bis dahin 404).
+  ID, nur für Admins (A-3). Der Wechsel leitet nach `?section=nodes` (seit #7 vorhanden).
 - **Superuser und E-Mail (MEM-07), gewollt:** Ein Superuser darf die E-Mail jedes Mitglieds ändern, etwa wenn eine Adresse
   dringend korrigiert werden muss. Das beruht auf Vertrauen und Sanktionen unter Menschen, nicht auf einer technischen
   Sperre; eine Rollenprüfung des Zielmitglieds wird bewusst nicht ergänzt.
 - **Mailstatus:** `data-mail-status`-Platzhalter bleibt für #8 offen.
 - **Konfiguration:** `USER_ROLES` (JSON), `MEMBER_SUBSCRIBE_MAIL`, `MAIL_FROM_NAME`, `PORTAL_URL` (siehe teststack.md). Ob der
   Standardwert von `USER_ROLES` der Produktion entspricht, ist offen (O-9), ebenso Mailrelay (O-5) und LDAP-ACLs (O-2).
+
+### 7.3 Umsetzung in #7 (Nodes, Standort, Tech-C, Eigentumsübergabe)
+
+Die Matrixzeilen NODE-01..16 und HOME-04 sind mit PHPUnit-Tests gegen den echten Stack belegt
+(`tests/Http/{NodeOverviewTest,NodeCrudTest,NodeHandoverTest}`, Sperren und Transaktionen in `NodeWriteTest`); die
+Matrix-ID steht als Kommentar am Test, die `Feature › Szenario`-Namen bleiben Platzhalter für #10. Geschrieben wird
+ausschließlich über `insertnode`, `updatenode`, `deletenode` und, wie im Altsystem, direkt in `nodes` (Vorschlag,
+Annahme, Rückgabe). Festlegungen, die über die Matrix hinausgehen:
+
+- **Rechte:** Eigentümer und Tech-C ändern und löschen einen Node und geben die Tech-C-Rolle zurück. Nur der Eigentümer
+  schlägt vor und zieht zurück; nur der Empfänger nimmt an oder lehnt ab (A-2). Admins haben kein Sonderrecht; beim
+  Identitätswechsel gilt die wirksame Mitglieds-ID (A-3). `id_members` an der Liste ist nur für die eigene ID erlaubt
+  (sonst 403). Ein beim Anlegen mitgesendetes `id_members` wird ignoriert: Eigentümer und Tech-C ist immer das
+  anlegende Mitglied. Löschen bietet die Oberfläche wie bisher nur dem Eigentümer an.
+- **Positive und negative IDs:** `id` in der URL ist immer eine positive Node-ID; alles andere ergibt 404, auch für
+  Mitglieder, die in einer Vorschlagszeile stehen. Ein Vorschlag wird nur über seinen Node angesprochen und nie als
+  Node gelistet, geändert oder gezählt. (Das Altsystem ließ Vorschlagszeilen über ihre negative ID ändern und löschen.)
+- **Speicherform des Vorschlags (U-3), unverändert:** Zeile in `nodes` mit `id` = −Node-ID, `name` = diese ID als Text,
+  `map` = false, Koordinaten leer. Tech-C-Einladung: `id_members` = Eigentümer, `id_tech_c` = Empfänger.
+  Eigentümerwechsel: `id_members` = Empfänger, `id_tech_c` = bisheriger Eigentümer (`stay_tech_c`) oder Empfänger.
+  Je Node gibt es höchstens einen Vorschlag; ein neuer ersetzt den alten (wie bisher, jetzt mit Hinweis).
+- **Veraltete Vorschläge:** Die Bestätigungsseite trägt die Fassung des Vorschlags (Art, Empfänger, künftiger Tech-C).
+  Annehmen, Ablehnen und Zurückziehen wirken nur, wenn die gesperrte Zeile noch dieser Fassung entspricht; sonst 409
+  ohne Schreibzugriff. Eine Zeile, die nicht zum aktuellen Eigentümer passt, gilt als kein Vorschlag.
+- **Transaktion:** Jede Schreibaktion sperrt zuerst den Node (`SELECT … FOR UPDATE`), prüft Rolle, Vorbedingungen und
+  Vorschlag und schreibt in derselben Transaktion (Konvention für #9 in [teststack.md](teststack.md)).
+- **HTTP-Codes:** 200 Erfolg; 422 Eingabefehler (Formular mit Werten); 409 Vorbedingung verletzt (Löschen mit Geräten
+  oder IPv6, kein eigener Tech-C, Vorschlag fehlt oder wurde ersetzt); 403 fehlendes Recht oder ungültiges CSRF-Token;
+  404 unbekannte oder nicht positive ID; 502 mit `data-status="failed"` bei Datenbankfehlern (nichts geändert).
+- **URLs (A-1, A-6):** Alle alten Node-URLs bleiben erhalten: `?section=nodes[&id_members=N]` und
+  `&action=insert|update|delete|resign|accept|decline|proposeOwner|proposeTechC[&id=N]`. GET liest nur; für `delete`,
+  `resign`, `accept` und `decline` zeigt GET die Bestätigungsseite (ersetzt `askDelete`/`askResign`/`askDecline`),
+  geschrieben wird per POST mit CSRF-Token. Zurückziehen ist die neue Aktion `withdraw`; die alten Eigentümer-Links
+  `resign&id=N&p=…` und `decline&id=N&p=…` führen auf ihre Bestätigungsseite. `?section=devices&id_nodes=N` folgt in #9.
+- **Empfänger eines Vorschlags:** Ziffern = Mitglieds-ID, mit `@` = E-Mail (ohne Groß/Klein), sonst Nickname; nur
+  `id > 0`. Abweichend vom Altsystem: Gehört eine E-Mail zu mehreren Mitgliedern, wird abgelehnt (bisher zufälliger
+  Treffer); eine negative Zahl wird nicht mehr in eine ID umgedeutet; Vorschläge an den Eigentümer selbst oder an den
+  bereits eingetragenen Tech-C werden abgelehnt (bisher entstanden wirkungslose Zeilen). Die App versendet keine Mail.
+- **Name und Koordinaten:** Name wie im Altsystem ohne Beachtung von Groß/Klein geprüft und wie eingegeben gespeichert;
+  die Regel ergibt immer einen gültigen Domainnamen. Jedes Koordinatenfeld ist einzeln optional (wie bisher), Komma
+  oder Punkt, Grenzen wie in `verifyForm`; keine Zahl ergibt 422 statt eines Datenbankfehlers. Die Liste zeigt eine
+  Position nur mit Grad ≠ 0, Minuten und Sekunden (wie bisher). Dezimal ↔ Grad/Minuten/Sekunden rechnet
+  `assets/nodes.js` im Browser um; die Tests prüfen nur, dass Formular und Skript ausgeliefert werden (NODE-05), die
+  Umrechnung selbst ist nicht automatisiert geprüft.
+- **Annahme eines Eigentümerwechsels** setzt den Tech-C wie im Altsystem neu (neuer oder bisheriger Eigentümer); ein
+  davor eingetragener dritter Tech-C entfällt. Die Tech-C-Rückgabe lässt einen offenen Vorschlag unberührt.
+- **Startseite (HOME-04):** Gezählt werden die Vorschläge, die auch die Node-Seite dem Mitglied zur Entscheidung zeigt.
+  Das Altsystem übersah Eigentümerwechsel ohne `stay_tech_c`; der Hinweis verlinkt jetzt auf die Node-Seite.
+- **Offen (O-12):** Nach einem Vorschlag zeigt die Erfolgsseite wie bisher Name und E-Mail des Empfängers. Wer einen
+  Node besitzt, kann so zu jeder ID oder jedem Nickname Name und E-Mail abfragen.
 
 ## 8. Vorhandene Evidenz im Altbestand
 
@@ -334,6 +384,7 @@ werden. Wo „Blocker“ steht, darf #11 nicht ohne Antwort in Produktion gehen.
 | O-9 | Existiert die Rolle Superuser produktiv, und wer hält sie? | MEM-07 und Testdaten | Nein |
 | O-10 | Rollback-Stand: Datenbank- und LDAP-Schreibzugriffe nach Cutover und Rückweg | #11 | Ja |
 | O-11 | Welche alten Lese-URLs und Mail-Links müssen bestehen bleiben (A-6)? | Weiterleitungsliste | Nein |
+| O-12 | Soll ein Übergabevorschlag weiterhin Name und E-Mail eines beliebigen Mitglieds anzeigen (`mailto:`-Link, NODE-10/11)? | Erfolgstext der Vorschlagsseite | Nein |
 
 ## 10. Abnahmeregel für #10 (Vorschlag)
 

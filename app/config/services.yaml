@@ -16,6 +16,7 @@ services:
             - '../src/Kernel.php'
             - '../src/Security/MemberIdentity.php'
             - '../src/Member/{Actor,Profile,Permission,Outcome,Status,SearchFilter,Denied,NotFound,BackendFailure}.php'
+            - '../src/Node/{Node,Proposal,ProposalKind,Rejected}.php'
 
     App\Security\BrowserAuthenticator:
         arguments:

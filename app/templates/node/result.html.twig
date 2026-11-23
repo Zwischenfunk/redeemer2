@@ -1,0 +1,15 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Nodes{% endblock %}
+
+{% block body %}
+    <h1>Nodes</h1>
+    <div role="{{ status == 'done' ? 'status' : 'alert' }}" data-status="{{ status }}">
+        {% for message in messages %}<p>{{ message }}</p>{% endfor %}
+        {% if recipient %}
+            <p><a href="mailto:{{ recipient.email }}">{{ recipient.firstname }} {{ recipient.lastname }}</a> braucht den Vorschlag nur noch im eigenen Account anzunehmen.
+                Der Redeemer verschickt dazu keine E-Mail.</p>
+        {% endif %}
+    </div>
+    <p><a href="{{ path('app_home', {section: 'nodes'}) }}">Zurück zur Knotenliste</a></p>
+{% endblock %}

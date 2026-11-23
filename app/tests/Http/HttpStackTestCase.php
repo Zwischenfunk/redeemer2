@@ -10,28 +10,33 @@ use Symfony\Component\Ldap\Adapter\ExtLdap\EntryManager;
 use Symfony\Component\Ldap\Adapter\ExtLdap\UpdateOperation;
 
 /**
- * Tests that mutate members: the HTTP stack, PostgreSQL and LDAP are shared, so every test restores
- * members, members_roles, the id sequence and all LDAP entries to the state it started from.
+ * Tests that mutate members or nodes: the HTTP stack, PostgreSQL and LDAP are shared, so every test restores
+ * members, members_roles, nodes, their id sequences and all LDAP entries to the state it started from.
  */
 abstract class HttpStackTestCase extends StackTestCase
 {
     protected const PASSWORD = 'rewrite-test-only';
 
-    /** @var list<array<string, mixed>> */
-    private array $members = [];
+    /** Restored tables with an id and a sequence; a table comes before the tables it references. */
+    private const TABLES = ['nodes', 'members'];
+
+    /** @var array<string, list<array<string, mixed>>> */
+    private array $rows = [];
+    /** @var array<string, array<string, mixed>> */
+    private array $sequences = [];
     /** @var list<array<string, mixed>> */
     private array $memberRoles = [];
-    /** @var array<string, mixed> */
-    private array $sequence = [];
     /** @var array<string, array<string, list<string>>> */
     private array $directory = [];
 
     protected function setUp(): void
     {
         $db = $this->db();
-        $this->members = $db->fetchAllAssociative('SELECT * FROM members ORDER BY id');
+        foreach (self::TABLES as $table) {
+            $this->rows[$table] = $db->fetchAllAssociative('SELECT * FROM '.$table.' ORDER BY id');
+            $this->sequences[$table] = $db->fetchAssociative('SELECT last_value, is_called FROM '.$table.'_id_seq');
+        }
         $this->memberRoles = $db->fetchAllAssociative('SELECT * FROM members_roles ORDER BY id_roles, id_members');
-        $this->sequence = $db->fetchAssociative('SELECT last_value, is_called FROM members_id_seq');
         foreach ($this->bindAsService()->query($this->baseDn(), '(objectClass=posixAccount)')->execute() as $entry) {
             $this->directory[$entry->getDn()] = $entry->getAttributes();
         }
@@ -52,33 +57,45 @@ abstract class HttpStackTestCase extends StackTestCase
         }
         $db->beginTransaction();
         try {
-            // The "changed" trigger would otherwise stamp the restored rows.
-            $db->executeStatement('ALTER TABLE members DISABLE TRIGGER USER');
             $db->executeStatement('DELETE FROM members_roles');
-            $db->executeStatement('DELETE FROM members WHERE id NOT IN ('.implode(',', array_map(intval(...), array_column($this->members, 'id'))).')');
-            $current = [];
-            foreach ($db->fetchAllAssociative('SELECT * FROM members') as $row) {
-                $current[$row['id']] = $row;
-            }
-            foreach ($this->members as $row) {
-                if (($current[$row['id']] ?? null) === $row) {
-                    continue;
-                }
-                $columns = array_keys($row);
-                $placeholders = implode(',', array_fill(0, count($columns), '?'));
-                $sets = implode(',', array_map(static fn (string $c) => $c.' = EXCLUDED.'.$c, array_filter($columns, static fn (string $c) => 'id' !== $c)));
-                $db->executeStatement(sprintf('INSERT INTO members (%s) VALUES (%s) ON CONFLICT (id) DO UPDATE SET %s', implode(',', $columns), $placeholders, $sets), array_values($row));
+            foreach (self::TABLES as $table) {
+                $this->restoreTable($table);
             }
             foreach ($this->memberRoles as $row) {
                 $db->executeStatement('INSERT INTO members_roles (id_roles, id_members) VALUES (?, ?)', [$row['id_roles'], $row['id_members']]);
             }
-            $db->executeStatement('ALTER TABLE members ENABLE TRIGGER USER');
-            $db->executeQuery('SELECT setval(\'members_id_seq\', ?, ?)', [$this->sequence['last_value'], $this->sequence['is_called']], [\Doctrine\DBAL\ParameterType::INTEGER, \Doctrine\DBAL\ParameterType::BOOLEAN]);
             $db->commit();
         } catch (\Throwable $e) {
             $db->rollBack();
             throw $e;
         }
+    }
+
+    private function restoreTable(string $table): void
+    {
+        $db = $this->db();
+        $rows = $this->rows[$table];
+        // The "created" and "changed" triggers would otherwise stamp the restored rows.
+        $db->executeStatement('ALTER TABLE '.$table.' DISABLE TRIGGER USER');
+        $db->executeStatement('DELETE FROM '.$table.' WHERE id NOT IN ('.implode(',', array_map(intval(...), array_column($rows, 'id'))).')');
+        $current = [];
+        foreach ($db->fetchAllAssociative('SELECT * FROM '.$table) as $row) {
+            $current[$row['id']] = $row;
+        }
+        foreach ($rows as $row) {
+            if (($current[$row['id']] ?? null) === $row) {
+                continue;
+            }
+            $columns = array_keys($row);
+            $placeholders = implode(',', array_fill(0, count($columns), '?'));
+            $sets = implode(',', array_map(static fn (string $c) => $c.' = EXCLUDED.'.$c, array_filter($columns, static fn (string $c) => 'id' !== $c)));
+            // DBAL would bind an untyped false as ''.
+            $values = array_map(static fn (mixed $value) => is_bool($value) ? ($value ? 't' : 'f') : $value, array_values($row));
+            $db->executeStatement(sprintf('INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (id) DO UPDATE SET %s', $table, implode(',', $columns), $placeholders, $sets), $values);
+        }
+        $db->executeStatement('ALTER TABLE '.$table.' ENABLE TRIGGER USER');
+        $sequence = $this->sequences[$table];
+        $db->executeQuery('SELECT setval(?, ?, ?)', [$table.'_id_seq', $sequence['last_value'], $sequence['is_called']], [2 => \Doctrine\DBAL\ParameterType::BOOLEAN]);
     }
 
     private function restoreDirectory(): void
