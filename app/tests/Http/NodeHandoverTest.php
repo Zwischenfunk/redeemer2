@@ -16,9 +16,10 @@ final class NodeHandoverTest extends NodeTestCase
         $owner = $this->loggedIn('testtech');
         $form = $owner->get(self::url('proposeOwner', 4))->getContent();
         self::assertStringContainsString('Neuer Besitzer für delta', $form);
+        self::assertStringContainsString('name="recipient_type" required', $form);
         self::assertStringContainsString('name="stay_tech_c" value="on" checked', $form);
 
-        $response = $this->propose($owner, 'proposeOwner', 4, ['id_tech_c' => 'TestFriend', 'stay_tech_c' => 'on']);
+        $response = $this->propose($owner, 'proposeOwner', 4, ['recipient_type' => 'nickname', 'id_tech_c' => 'TestFriend', 'stay_tech_c' => 'on']);
         self::assertSame(200, $response->getStatusCode());
         self::assertStringContainsString('data-status="done"', $response->getContent());
         self::assertStringContainsString('<a href="mailto:testfriend@example.test">Frida Friend</a>', $response->getContent());
@@ -57,7 +58,7 @@ final class NodeHandoverTest extends NodeTestCase
     /** PAR-NODE-10, PAR-NODE-12, PAR-HOME-04 */
     public function testOwnerHandsNodeOverCompletelyByMailAddress(): void
     {
-        $response = $this->propose($this->loggedIn('testtech'), 'proposeOwner', 4, ['id_tech_c' => 'TestFriend@Example.Test']);
+        $response = $this->propose($this->loggedIn('testtech'), 'proposeOwner', 4, ['recipient_type' => 'email', 'id_tech_c' => 'TestFriend@Example.Test']);
         self::assertSame(200, $response->getStatusCode());
         self::assertSame([8, 8], $this->row(-4));
 
@@ -76,7 +77,7 @@ final class NodeHandoverTest extends NodeTestCase
     {
         $owner = $this->loggedIn('testtech');
         self::assertStringContainsString('Tech-Contact für delta', $owner->get(self::url('proposeTechC', 4))->getContent());
-        $response = $this->propose($owner, 'proposeTechC', 4, ['id_tech_c' => '8', 'stay_tech_c' => 'on']);
+        $response = $this->propose($owner, 'proposeTechC', 4, ['recipient_type' => 'id', 'id_tech_c' => '8', 'stay_tech_c' => 'on']);
         self::assertSame(200, $response->getStatusCode());
         self::assertStringContainsString('mailto:testfriend@example.test', $response->getContent());
         self::assertSame([5, 8], $this->row(-4));
@@ -148,10 +149,11 @@ final class NodeHandoverTest extends NodeTestCase
         $techC = $this->loggedIn('testowner2');
         $propose = $techC->tokenFrom(self::url('proposeTechC', 2), 'node-propose');
         $withdraw = $this->confirmation($techC, 'withdraw', 2);
+        $fields = ['recipient_type' => 'nickname', 'id_tech_c' => 'testfriend', '_csrf_token' => $propose];
         foreach (['proposeOwner', 'proposeTechC'] as $action) {
             self::assertSame(403, $techC->get(self::url($action, 3))->getStatusCode());
-            self::assertSame(403, $techC->post(self::url($action, 3), ['id_tech_c' => 'testfriend', '_csrf_token' => $propose])->getStatusCode());
-            self::assertSame(403, $techC->post(self::url($action, 1), ['id_tech_c' => 'testfriend', '_csrf_token' => $propose])->getStatusCode());
+            self::assertSame(403, $techC->post(self::url($action, 3), $fields)->getStatusCode());
+            self::assertSame(403, $techC->post(self::url($action, 1), $fields)->getStatusCode());
         }
         self::assertSame(403, $techC->get(self::url('withdraw', 1))->getStatusCode());
         self::assertSame(403, $techC->post(self::url('withdraw', 1), ['proposal' => 'techc-6-6'] + $withdraw)->getStatusCode());
@@ -192,11 +194,12 @@ final class NodeHandoverTest extends NodeTestCase
         $recipient = $this->loggedIn('testplain');
         $accept = $this->confirmation($recipient, 'accept', 1);
         $decline = $this->confirmation($recipient, 'decline', 1);
-        self::assertSame('techc-6-6', $accept['proposal']);
+        self::assertNotEmpty($accept['proposal']);
+        self::assertSame($accept['proposal'], $decline['proposal']);
 
         // The owner now offers the whole node to the same member instead of the Tech-C role.
         $owner = $this->loggedIn('testuser');
-        $replaced = $this->propose($owner, 'proposeOwner', 1, ['id_tech_c' => 'testplain', 'stay_tech_c' => 'on']);
+        $replaced = $this->propose($owner, 'proposeOwner', 1, ['recipient_type' => 'nickname', 'id_tech_c' => 'testplain', 'stay_tech_c' => 'on']);
         self::assertStringContainsString('Der bisherige Vorschlag für diesen Node wurde dadurch ersetzt.', $replaced->getContent());
         $before = $this->nodes();
         foreach (['accept' => $accept, 'decline' => $decline] as $action => $fields) {
@@ -219,13 +222,47 @@ final class NodeHandoverTest extends NodeTestCase
         self::assertSame($before, $this->nodes());
     }
 
+    /** @return iterable<string, array{bool}> */
+    public static function reissues(): iterable
+    {
+        yield 'replace directly' => [false];
+        yield 'withdraw, then reissue' => [true];
+    }
+
+    #[DataProvider('reissues')]
+    public function testOldConfirmationsCannotActOnAnIdenticalReissue(bool $withdrawFirst): void
+    {
+        $owner = $this->loggedIn('testtech');
+        $recipient = $this->loggedIn('testfriend');
+        $offer = ['recipient_type' => 'nickname', 'id_tech_c' => 'testfriend', 'stay_tech_c' => 'on'];
+        self::assertSame(200, $this->propose($owner, 'proposeOwner', 4, $offer)->getStatusCode());
+
+        $accept = $this->confirmation($recipient, 'accept', 4);
+        $decline = $this->confirmation($recipient, 'decline', 4);
+        $withdraw = $this->confirmation($owner, 'withdraw', 4);
+        if ($withdrawFirst) {
+            self::assertSame(200, $this->confirm($owner, 'withdraw', 4)->getStatusCode());
+        }
+        self::assertSame(200, $this->propose($owner, 'proposeOwner', 4, $offer)->getStatusCode());
+        $before = $this->nodes();
+
+        self::assertSame(409, $recipient->post(self::url('accept', 4), $accept)->getStatusCode());
+        self::assertSame(409, $recipient->post(self::url('decline', 4), $decline)->getStatusCode());
+        self::assertSame(409, $owner->post(self::url('withdraw', 4), $withdraw)->getStatusCode());
+        self::assertSame($before, $this->nodes());
+
+        self::assertSame(200, $this->confirm($recipient, 'accept', 4)->getStatusCode());
+        self::assertSame([8, 5], $this->row(4));
+        self::assertNull($this->row(-4));
+    }
+
     /** The recipient changed: the first one is no longer asked, the second one decides. */
     public function testNewProposalReplacesTheOldOne(): void
     {
         $first = $this->loggedIn('testplain');
         $accept = $this->confirmation($first, 'accept', 1);
 
-        $this->propose($this->loggedIn('testuser'), 'proposeTechC', 1, ['id_tech_c' => 'testhonor@example.test']);
+        $this->propose($this->loggedIn('testuser'), 'proposeTechC', 1, ['recipient_type' => 'email', 'id_tech_c' => 'testhonor@example.test']);
         self::assertSame([3, 7], $this->row(-1));
         self::assertSame(1, (int) $this->db()->fetchOne('SELECT count(*) FROM nodes WHERE id = -1'));
 
@@ -237,32 +274,51 @@ final class NodeHandoverTest extends NodeTestCase
         self::assertSame([3, 7], $this->row(1));
     }
 
-    /** @return iterable<string, array{string, int, string, string}> */
+    public function testNumericRecipientIsResolvedOnlyByTheSelectedType(): void
+    {
+        $this->db()->executeStatement("UPDATE members SET nickname = '8' WHERE id = 6");
+        $owner = $this->loggedIn('testtech');
+
+        foreach (['nickname' => 6, 'id' => 8] as $type => $memberId) {
+            $response = $this->propose($owner, 'proposeTechC', 4, ['recipient_type' => $type, 'id_tech_c' => '8']);
+            self::assertSame(200, $response->getStatusCode());
+            self::assertSame([5, $memberId], $this->row(-4));
+        }
+    }
+
+    /** @return iterable<string, array{string, int, string|null, string, string}> */
     public static function unusableRecipients(): iterable
     {
-        yield 'nothing' => ['proposeOwner', 1, '', 'Bitte Member-ID'];
-        yield 'unknown nickname' => ['proposeOwner', 1, 'nobody', 'Kein Benutzer mit diesem Nickname gefunden.'];
-        yield 'unknown id' => ['proposeTechC', 1, '424242', 'Kein Benutzer mit dieser ID gefunden.'];
-        yield 'negative id' => ['proposeTechC', 1, '-6', 'Kein Benutzer mit diesem Nickname gefunden.'];
-        yield 'unknown address' => ['proposeOwner', 1, 'nobody@example.test', 'Kein Benutzer mit dieser E-Mail-Adresse gefunden.'];
-        yield 'address of two members' => ['proposeOwner', 1, 'shared@example.test', 'gehört zu mehreren Benutzern'];
-        yield 'owner as owner' => ['proposeOwner', 1, 'testuser', 'bereits Besitzer'];
-        yield 'owner as Tech-C' => ['proposeTechC', 3, '3', 'den bisherigen Tech-Contact entfernt'];
-        yield 'Tech-C as Tech-C' => ['proposeTechC', 3, 'testowner2', 'bereits Tech-Contact'];
+        yield 'no type' => ['proposeOwner', 1, null, '8', 'als Eingabetyp auswählen'];
+        yield 'unknown type' => ['proposeOwner', 1, 'auto', '8', 'als Eingabetyp auswählen'];
+        yield 'no value' => ['proposeOwner', 1, 'nickname', '', 'Bitte Member-ID'];
+        yield 'unknown nickname' => ['proposeOwner', 1, 'nickname', 'nobody', 'Kein Benutzer mit diesem Nickname gefunden.'];
+        yield 'unknown id' => ['proposeTechC', 1, 'id', '424242', 'Kein Benutzer mit dieser ID gefunden.'];
+        yield 'negative id' => ['proposeTechC', 1, 'id', '-6', 'Bitte eine positive Member-ID angeben.'];
+        yield 'id overflow' => ['proposeTechC', 1, 'id', '9223372036854775808', 'Bitte eine positive Member-ID angeben.'];
+        yield 'unknown address' => ['proposeOwner', 1, 'email', 'nobody@example.test', 'Kein Benutzer mit dieser E-Mail-Adresse gefunden.'];
+        yield 'address of two members' => ['proposeOwner', 1, 'email', 'shared@example.test', 'gehört zu mehreren Benutzern'];
+        yield 'owner as owner' => ['proposeOwner', 1, 'nickname', 'testuser', 'bereits Besitzer'];
+        yield 'owner as Tech-C' => ['proposeTechC', 3, 'id', '3', 'den bisherigen Tech-Contact entfernt'];
+        yield 'Tech-C as Tech-C' => ['proposeTechC', 3, 'nickname', 'testowner2', 'bereits Tech-Contact'];
     }
 
     /** PAR-NODE-10, PAR-NODE-11 */
     #[DataProvider('unusableRecipients')]
-    public function testProposalNeedsExactlyOneOtherMember(string $action, int $id, string $input, string $message): void
+    public function testProposalNeedsExactlyOneOtherMember(string $action, int $id, ?string $type, string $input, string $message): void
     {
         $this->db()->executeStatement("UPDATE members SET email = 'shared@example.test' WHERE id IN (7, 8)");
         $before = $this->nodes();
 
-        $response = $this->propose($this->loggedIn('testuser'), $action, $id, ['id_tech_c' => $input]);
+        $fields = ['id_tech_c' => $input] + (null === $type ? [] : ['recipient_type' => $type]);
+        $response = $this->propose($this->loggedIn('testuser'), $action, $id, $fields);
         self::assertSame(422, $response->getStatusCode());
         $html = $response->getContent(false);
         self::assertStringContainsString($message, $html);
         self::assertStringContainsString('name="id_tech_c" value="'.$input.'"', $html);
+        if (in_array($type, ['id', 'nickname', 'email'], true)) {
+            self::assertStringContainsString('value="'.$type.'" selected', $html);
+        }
         self::assertSame($before, $this->nodes());
     }
 }

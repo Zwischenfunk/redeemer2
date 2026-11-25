@@ -1,7 +1,7 @@
 // Node form: keeps the decimal-degree helper fields in step with the degree/minute/second fields.
 
 function dmsToDecimal(degrees, minutes, seconds) {
-    return Math.round((degrees + minutes / 60 + seconds / 3600) * 1e7) / 1e7;
+    return (degrees + minutes / 60 + seconds / 3600).toFixed(7).replace(/\.?0+$/, '');
 }
 
 // Works in thousandths of an arc second, so rounding never yields 60 seconds.
@@ -13,22 +13,29 @@ function decimalToDms(decimal) {
 
 document.querySelectorAll('[data-decimal]').forEach((decimal) => {
     const parts = ['deg', 'min', 'sec'].map((part) => document.getElementById('f-gps_' + decimal.dataset.decimal + '_' + part));
+    const maximum = decimal.dataset.decimal === 'lat' ? 90 : 180;
+    const normalized = (input) => input.value.trim().replace(',', '.');
     const read = (input) => {
-        input.value = input.value.replace(',', '.');
-
-        return input.value.trim() === '' ? NaN : Number(input.value);
+        const value = normalized(input);
+        return value === '' ? NaN : Number(value);
     };
     const showDecimal = () => {
         const values = parts.map(read);
-        decimal.value = values.some(Number.isNaN) ? '' : dmsToDecimal(...values);
+        decimal.value = values.every(Number.isFinite) ? dmsToDecimal(...values) : '';
+        decimal.setCustomValidity('');
     };
 
     parts.forEach((input) => input.addEventListener('input', showDecimal));
     decimal.addEventListener('input', () => {
-        const value = read(decimal);
-        if (!Number.isNaN(value) && value >= 0) {
-            decimalToDms(value).forEach((part, index) => { parts[index].value = part; });
+        const text = normalized(decimal);
+        const value = Number(text);
+        if (text !== '' && (!/^(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)$/.test(text) || value > maximum)) {
+            decimal.setCustomValidity(`Zahl zwischen 0 und ${maximum} erwartet.`);
+            return;
         }
+        decimal.setCustomValidity('');
+        const values = text === '' ? ['', '', ''] : decimalToDms(value);
+        parts.forEach((part, index) => { part.value = String(values[index]); });
     });
     showDecimal();
 });

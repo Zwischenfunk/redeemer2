@@ -17,8 +17,8 @@ use Doctrine\DBAL\Exception\DriverException;
 use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
- * The write convention handed to the devices module (#9): every write locks its node before it checks and
- * writes, all in one transaction. Runs on the real database; nothing is committed.
+ * The write convention handed to the devices module (#9): writes to an existing node lock it before
+ * dependent rows in the same transaction. Runs on the real database; nothing is committed.
  */
 final class NodeWriteTest extends StackTestCase
 {
@@ -27,35 +27,44 @@ final class NodeWriteTest extends StackTestCase
         return new Actor($memberId, $memberId, 'member'.$memberId, []);
     }
 
-    /** @return iterable<string, array{\Closure(Nodes, Handover): mixed}> every write of the module, called by a member who may do it */
+    /** @return iterable<string, array{\Closure(Nodes, Handover, string): mixed}> each write to an existing node, with an authorized actor */
     public static function writes(): iterable
     {
         yield 'update' => [static fn (Nodes $nodes) => $nodes->update(self::actor(3), 1, ['name' => 'alpha'])];
         yield 'delete' => [static fn (Nodes $nodes) => $nodes->delete(self::actor(3), 1)];
         yield 'resign' => [static fn (Nodes $nodes) => $nodes->resign(self::actor(3), 1)];
-        yield 'propose' => [static fn (Nodes $nodes, Handover $handover) => $handover->propose(self::actor(3), 1, ProposalKind::Owner, ['id_tech_c' => '8'])];
-        yield 'withdraw' => [static fn (Nodes $nodes, Handover $handover) => $handover->withdraw(self::actor(3), 1, 'techc-6-6')];
-        yield 'accept' => [static fn (Nodes $nodes, Handover $handover) => $handover->accept(self::actor(6), 1, 'techc-6-6')];
-        yield 'decline' => [static fn (Nodes $nodes, Handover $handover) => $handover->decline(self::actor(6), 1, 'techc-6-6')];
+        // Owner issues an offer to member 8 by ID.
+        yield 'propose' => [static fn (Nodes $nodes, Handover $handover) => $handover->propose(self::actor(3), 1, ProposalKind::Owner, ['recipient_type' => 'id', 'id_tech_c' => '8'])];
+        // Use the current version so the write would proceed if it did not wait for a lock.
+        yield 'withdraw' => [static fn (Nodes $nodes, Handover $handover, string $version) => $handover->withdraw(self::actor(3), 1, $version)];
+        // The addressed member accepts that version.
+        yield 'accept' => [static fn (Nodes $nodes, Handover $handover, string $version) => $handover->accept(self::actor(6), 1, $version)];
+        // The addressed member declines that version.
+        yield 'decline' => [static fn (Nodes $nodes, Handover $handover, string $version) => $handover->decline(self::actor(6), 1, $version)];
     }
 
-    /** @param \Closure(Nodes, Handover): mixed $write */
+    /** @param \Closure(Nodes, Handover, string): mixed $write */
     #[DataProvider('writes')]
-    public function testWriteWaitsForTheNodeLockOfAConcurrentWriter(\Closure $write): void
+    public function testWritesLockTheNodeBeforeDependentRows(\Closure $write): void
     {
         $db = $this->db();
+        $handover = self::getContainer()->get(Handover::class);
+        $version = $handover->decidable(self::actor(6), 1)->version();
         $before = $db->fetchAllAssociative('SELECT * FROM nodes ORDER BY id');
         $other = DatabaseConnectionFactory::create((string) getenv('DATABASE_URL'));
         $other->beginTransaction();
-        $other->fetchOne('SELECT id FROM nodes WHERE id = 1 FOR UPDATE');
+        $other->fetchFirstColumn('SELECT id FROM nodes WHERE id IN (1, -1) FOR UPDATE');
         $db->executeStatement("SET lock_timeout = '300ms'");
 
         try {
-            $write(self::getContainer()->get(Nodes::class), self::getContainer()->get(Handover::class));
+            $write(self::getContainer()->get(Nodes::class), $handover, $version);
             self::fail('The write did not wait for the lock on its node.');
         } catch (DriverException $exception) {
             // 55P03 lock_not_available: the write was still waiting when the timeout struck.
             self::assertSame('55P03', $exception->getSQLState());
+            // A mutation or an attempt to lock the proposal first would also time out.
+            self::assertStringEndsWith(' FOR UPDATE', $exception->getQuery()?->getSQL() ?? '');
+            self::assertSame([1], $exception->getQuery()?->getParams());
         } finally {
             $db->executeStatement('RESET lock_timeout');
             $other->rollBack();
@@ -78,7 +87,7 @@ final class NodeWriteTest extends StackTestCase
         $this->rollingBack(function (Connection $db): void {
             $nodes = self::getContainer()->get(Nodes::class);
             self::assertSame(4, $nodes->deletable(self::actor(5), 4)->id);
-            $db->fetchOne('SELECT insertip6(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', ['n', 4, '2a02:61:4::1', 'delta-6', true, true, true, null, null, null, null]);
+            $db->fetchOne('SELECT insertip6(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', ['n', 4, '2a02:61:4::1', 'delta-6', 1, 1, 1, null, null, null, null]);
 
             $this->expectException(Rejected::class);
             $nodes->delete(self::actor(5), 4);

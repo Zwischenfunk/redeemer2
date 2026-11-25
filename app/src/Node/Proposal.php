@@ -17,11 +17,12 @@ final readonly class Proposal
         public int $recipientId,
         /** Tech-C once the proposal is accepted */
         public int $techCId,
+        private string $rowVersion,
     ) {
     }
 
     /**
-     * @param array{id_members: mixed, id_tech_c: mixed} $row the proposal row of $node
+     * @param array{id_members: mixed, id_tech_c: mixed, row_version: mixed} $row the proposal row and its PostgreSQL tuple identity
      *
      * @return self|null null if the row does not describe a handover of the node as it is now
      */
@@ -29,11 +30,12 @@ final readonly class Proposal
     {
         $owner = (int) $row['id_members'];
         $techC = (int) $row['id_tech_c'];
+        $rowVersion = (string) $row['row_version'];
         if ($owner !== $node->ownerId) {
-            return in_array($techC, [$owner, $node->ownerId], true) ? new self($node, ProposalKind::Owner, $owner, $techC) : null;
+            return in_array($techC, [$owner, $node->ownerId], true) ? new self($node, ProposalKind::Owner, $owner, $techC, $rowVersion) : null;
         }
 
-        return $techC !== $node->ownerId ? new self($node, ProposalKind::TechC, $techC, $techC) : null;
+        return $techC !== $node->ownerId ? new self($node, ProposalKind::TechC, $techC, $techC, $rowVersion) : null;
     }
 
     public function transfersOwnership(): bool
@@ -52,9 +54,9 @@ final readonly class Proposal
         return $this->transfersOwnership() ? $this->recipientId : $this->node->ownerId;
     }
 
-    /** What the deciding member saw. A withdrawn or replaced proposal has no or another version. */
+    /** Binds the confirmation to the node, terms, and this issuance without changing the legacy row format. */
     public function version(): string
     {
-        return sprintf('%s-%d-%d', $this->kind->value, $this->recipientId, $this->techCId);
+        return hash('sha256', sprintf('%d:%d:%s:%d:%d:%s', $this->node->id, $this->node->ownerId, $this->kind->value, $this->recipientId, $this->techCId, $this->rowVersion));
     }
 }

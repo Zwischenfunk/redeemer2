@@ -11,7 +11,8 @@ use Doctrine\DBAL\ParameterType;
 
 /**
  * Create, change and delete nodes and give the Tech-C role back, through the unchanged database routines.
- * Every write checks rights and preconditions inside its transaction, on the locked node (see NodeAccess).
+ * Writes to an existing node check rights and preconditions on the locked node (see NodeAccess).
+ * Creation uses one routine call; there is no existing node to lock.
  */
 final readonly class Nodes
 {

@@ -14,7 +14,7 @@ use Doctrine\DBAL\Connection;
  * over. Admins have no extra rights; object rights follow Actor::effectiveId. Only positive ids are nodes: rows
  * with a negative id are handover proposals and are never addressed, listed or counted as nodes.
  *
- * Writes: open a transaction, fetch the node with lock: true before anything else, check, write, commit. The row
+ * Writes to an existing node: open a transaction, fetch the node with lock: true, check, write, commit. The row
  * lock (FOR UPDATE) makes concurrent writers of the same node wait, so the check and the write see the same
  * owner, Tech-C and dependants. Lock the node first, rows that depend on it afterwards.
  */

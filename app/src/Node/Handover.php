@@ -22,7 +22,10 @@ final readonly class Handover
 
     public function pending(Node $node, bool $lock = false): ?Proposal
     {
-        $row = $this->db->fetchAssociative('SELECT id_members, id_tech_c FROM nodes WHERE id = ?'.($lock ? ' FOR UPDATE' : ''), [-$node->id]);
+        $row = $this->db->fetchAssociative(
+            'SELECT id_members, id_tech_c, ROW(xmin, ctid, created)::text AS row_version FROM nodes WHERE id = ?'.($lock ? ' FOR UPDATE' : ''),
+            [-$node->id],
+        );
 
         return false === $row ? null : Proposal::fromRow($node, $row);
     }
@@ -30,7 +33,7 @@ final readonly class Handover
     /**
      * The owner proposes a new owner or Tech-C; an earlier proposal for the node is replaced.
      *
-     * @param array<string, mixed> $input id_tech_c: member id, e-mail address or nickname; stay_tech_c: the owner stays Tech-C
+     * @param array<string, mixed> $input recipient_type: id, email or nickname; id_tech_c: the lookup value; stay_tech_c: the owner stays Tech-C
      *
      * @return array{recipient: array{id: int, firstname: string, lastname: string, email: string}, replaced: bool}
      *
@@ -42,7 +45,7 @@ final readonly class Handover
     {
         return $this->db->transactional(function () use ($actor, $nodeId, $kind, $input): array {
             $node = $this->access->owned($actor, $nodeId, lock: true);
-            $recipient = $this->recipient($input['id_tech_c'] ?? null);
+            $recipient = $this->recipient($input['recipient_type'] ?? null, $input['id_tech_c'] ?? null);
             $error = match (true) {
                 $recipient['id'] === $node->ownerId && ProposalKind::Owner === $kind => 'Dieser Benutzer ist bereits Besitzer des Nodes.',
                 $recipient['id'] === $node->ownerId => 'Der Besitzer wird Tech-Contact, indem er den bisherigen Tech-Contact entfernt.',
@@ -152,17 +155,26 @@ final readonly class Handover
      *
      * @throws Rejected
      */
-    private function recipient(mixed $input): array
+    private function recipient(mixed $type, mixed $input): array
     {
+        // A numeric nickname can also be another member's ID. Use only the selected field.
+        [$condition, $what] = match ($type) {
+            'id' => ['id = ?', 'dieser ID'],
+            'nickname' => ['lower(nickname) = lower(?)', 'diesem Nickname'],
+            'email' => ['lower(email) = lower(?)', 'dieser E-Mail-Adresse'],
+            default => throw Rejected::fields(['recipient_type' => 'Bitte Member-ID, Nickname oder E-Mail-Adresse als Eingabetyp auswählen.']),
+        };
         $input = is_string($input) ? trim($input) : '';
         if ('' === $input || strlen($input) > 100 || 1 === preg_match('/[\x00-\x1f\x7f]/', $input) || !mb_check_encoding($input, 'UTF-8')) {
             throw Rejected::fields(['id_tech_c' => 'Bitte Member-ID, Nickname oder E-Mail-Adresse des Benutzers angeben.']);
         }
-        [$condition, $value, $what] = match (true) {
-            1 === preg_match('/^[0-9]{1,9}$/', $input) => ['id = ?', (int) $input, 'dieser ID'],
-            str_contains($input, '@') => ['lower(email) = lower(?)', $input, 'dieser E-Mail-Adresse'],
-            default => ['nickname = lower(?)', $input, 'diesem Nickname'],
-        };
+        $value = $input;
+        if ('id' === $type) {
+            $value = ctype_digit($input) ? filter_var(ltrim($input, '0'), FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) : false;
+            if (false === $value) {
+                throw Rejected::fields(['id_tech_c' => 'Bitte eine positive Member-ID angeben.']);
+            }
+        }
         $rows = $this->db->fetchAllAssociative('SELECT id, firstname, lastname, email FROM members WHERE id > 0 AND '.$condition.' ORDER BY id LIMIT 2', [$value]);
         if (1 !== count($rows)) {
             throw Rejected::fields(['id_tech_c' => [] === $rows

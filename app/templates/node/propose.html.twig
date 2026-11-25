@@ -16,8 +16,17 @@
     <form method="post" action="{{ path('app_home', {section: 'nodes', action: owner ? 'proposeOwner' : 'proposeTechC', id: node.id}) }}" data-form="node-propose">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token('node_propose') }}">
         <p>
+            <label for="f-recipient-type">Empfänger suchen nach</label>
+            <select id="f-recipient-type" name="recipient_type" required {{ error_field == 'recipient_type' ? 'aria-invalid="true"' }}>
+                <option value="">Bitte auswählen</option>
+                <option value="id" {{ recipient_type == 'id' ? 'selected' }}>Member-ID</option>
+                <option value="nickname" {{ recipient_type == 'nickname' ? 'selected' }}>Nickname</option>
+                <option value="email" {{ recipient_type == 'email' ? 'selected' }}>E-Mail-Adresse</option>
+            </select>
+        </p>
+        <p>
             <label for="f-id_tech_c">{{ owner ? 'Neuer Besitzer' : 'Tech-Contact' }} für {{ node.name }}</label>
-            <input id="f-id_tech_c" name="id_tech_c" value="{{ input }}" maxlength="100" required {{ error ? 'aria-invalid="true"' }}>
+            <input id="f-id_tech_c" name="id_tech_c" value="{{ input }}" maxlength="100" required {{ error_field == 'id_tech_c' ? 'aria-invalid="true"' }}>
         </p>
         {% if owner %}
             <p><label><input type="checkbox" name="stay_tech_c" value="on" {{ stay ? 'checked' }}> Tech-Contact bleiben</label></p>
@@ -25,5 +34,5 @@
         <button type="submit">Vorschlagen</button>
         <a href="{{ path('app_home', {section: 'nodes'}) }}">Abbrechen</a>
     </form>
-    <p><small>Member-ID, Nickname oder E-Mail-Adresse des Benutzers eintragen. Der Vorschlag gilt erst, wenn dieser Benutzer ihn in seinem Account annimmt.</small></p>
+    <p><small>Den Eingabetyp auswählen und den passenden Wert eintragen. Der Vorschlag gilt erst, wenn der Empfänger ihn in seinem Account annimmt.</small></p>
 {% endblock %}

@@ -312,11 +312,14 @@ Annahme, Rückgabe). Festlegungen, die über die Matrix hinausgehen:
   `map` = false, Koordinaten leer. Tech-C-Einladung: `id_members` = Eigentümer, `id_tech_c` = Empfänger.
   Eigentümerwechsel: `id_members` = Empfänger, `id_tech_c` = bisheriger Eigentümer (`stay_tech_c`) oder Empfänger.
   Je Node gibt es höchstens einen Vorschlag; ein neuer ersetzt den alten (wie bisher, jetzt mit Hinweis).
-- **Veraltete Vorschläge:** Die Bestätigungsseite trägt die Fassung des Vorschlags (Art, Empfänger, künftiger Tech-C).
-  Annehmen, Ablehnen und Zurückziehen wirken nur, wenn die gesperrte Zeile noch dieser Fassung entspricht; sonst 409
-  ohne Schreibzugriff. Eine Zeile, die nicht zum aktuellen Eigentümer passt, gilt als kein Vorschlag.
-- **Transaktion:** Jede Schreibaktion sperrt zuerst den Node (`SELECT … FOR UPDATE`), prüft Rolle, Vorbedingungen und
-  Vorschlag und schreibt in derselben Transaktion (Konvention für #9 in [teststack.md](teststack.md)).
+- **Stale proposals:** The confirmation is tied to the node, the terms and the PostgreSQL row version. Even a reissue
+  with identical terms invalidates the previous confirmation. Accepting, declining or withdrawing with a stale version
+  returns 409 and writes nothing. A row inconsistent with the current owner is not a proposal. If the actor is no
+  longer allowed to decide, the response is 403. A table rewrite can change the row version; reopen the confirmation
+  before deciding again.
+- **Transaction:** A write to an existing node locks that node first (`SELECT … FOR UPDATE`), then checks the
+  role, preconditions and proposal and writes in the same transaction. Creation is a single `insertnode` call;
+  there is no existing node to lock. See the convention for #9 in [teststack.md](teststack.md).
 - **HTTP-Codes:** 200 Erfolg; 422 Eingabefehler (Formular mit Werten); 409 Vorbedingung verletzt (Löschen mit Geräten
   oder IPv6, kein eigener Tech-C, Vorschlag fehlt oder wurde ersetzt); 403 fehlendes Recht oder ungültiges CSRF-Token;
   404 unbekannte oder nicht positive ID; 502 mit `data-status="failed"` bei Datenbankfehlern (nichts geändert).
@@ -325,20 +328,21 @@ Annahme, Rückgabe). Festlegungen, die über die Matrix hinausgehen:
   `resign`, `accept` und `decline` zeigt GET die Bestätigungsseite (ersetzt `askDelete`/`askResign`/`askDecline`),
   geschrieben wird per POST mit CSRF-Token. Zurückziehen ist die neue Aktion `withdraw`; die alten Eigentümer-Links
   `resign&id=N&p=…` und `decline&id=N&p=…` führen auf ihre Bestätigungsseite. `?section=devices&id_nodes=N` folgt in #9.
-- **Empfänger eines Vorschlags:** Ziffern = Mitglieds-ID, mit `@` = E-Mail (ohne Groß/Klein), sonst Nickname; nur
-  `id > 0`. Abweichend vom Altsystem: Gehört eine E-Mail zu mehreren Mitgliedern, wird abgelehnt (bisher zufälliger
-  Treffer); eine negative Zahl wird nicht mehr in eine ID umgedeutet; Vorschläge an den Eigentümer selbst oder an den
-  bereits eingetragenen Tech-C werden abgelehnt (bisher entstanden wirkungslose Zeilen). Die App versendet keine Mail.
-- **Name und Koordinaten:** Name wie im Altsystem ohne Beachtung von Groß/Klein geprüft und wie eingegeben gespeichert;
-  die Regel ergibt immer einen gültigen Domainnamen. Jedes Koordinatenfeld ist einzeln optional (wie bisher), Komma
-  oder Punkt, Grenzen wie in `verifyForm`; keine Zahl ergibt 422 statt eines Datenbankfehlers. Die Liste zeigt eine
-  Position nur mit Grad ≠ 0, Minuten und Sekunden (wie bisher). Dezimal ↔ Grad/Minuten/Sekunden rechnet
-  `assets/nodes.js` im Browser um; die Tests prüfen nur, dass Formular und Skript ausgeliefert werden (NODE-05), die
-  Umrechnung selbst ist nicht automatisiert geprüft.
+- **Proposal recipient:** Select member ID, nickname or email explicitly (`recipient_type` is `id`, `nickname` or
+  `email`; `id_tech_c` still holds the lookup value). The lookup uses only that field and only members with `id > 0`.
+  Nickname and email matches ignore case. An email shared by multiple members is rejected. The owner cannot propose
+  to themselves. The current Tech-C cannot be invited to that role again, but can receive an ownership offer.
+  The app does not send mail.
+- **Name and coordinates:** Names are checked case-insensitively and stored as entered. The rule produces a valid
+  domain name. Each coordinate field is optional and accepts a comma or dot with the same limits as `verifyForm`.
+  Invalid DMS values give 422. The form renders saved DMS values as decimals, not scientific notation. The list
+  only shows a position when degrees are nonzero and both minutes and seconds are present. The browser converts
+  decimal degrees and DMS in `assets/nodes.js`. Clearing a decimal field clears its three DMS fields; an invalid
+  decimal value blocks submission. The conversion and these edits are covered by `tests/Js/nodes.test.cjs`.
 - **Annahme eines Eigentümerwechsels** setzt den Tech-C wie im Altsystem neu (neuer oder bisheriger Eigentümer); ein
   davor eingetragener dritter Tech-C entfällt. Die Tech-C-Rückgabe lässt einen offenen Vorschlag unberührt.
-- **Startseite (HOME-04):** Gezählt werden die Vorschläge, die auch die Node-Seite dem Mitglied zur Entscheidung zeigt.
-  Das Altsystem übersah Eigentümerwechsel ohne `stay_tech_c`; der Hinweis verlinkt jetzt auf die Node-Seite.
+- **Home page (HOME-04):** The notice counts the same proposals shown for decision on the Nodes page, including
+  ownership offers without `stay_tech_c`. The notice links to that page. The location overview stays on the Nodes page.
 - **Offen (O-12):** Nach einem Vorschlag zeigt die Erfolgsseite wie bisher Name und E-Mail des Empfängers. Wer einen
   Node besitzt, kann so zu jeder ID oder jedem Nickname Name und E-Mail abfragen.
 

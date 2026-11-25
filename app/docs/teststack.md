@@ -91,12 +91,16 @@ Legacy-Cookie `CSRFtoken`. Nur nach LDAP- und SQL-Abgleich wird `member_login` a
   Unbekannte oder nicht positive IDs ergeben `NotFound` (404), fehlendes Recht `Denied` (403). Admins haben kein Sonderrecht.
 * Nur positive IDs sind Nodes. Zeilen mit negativer ID sind Übergabevorschläge (`App\Node\Proposal`, gelesen über
   `Handover::pending`) und werden nie als Node angesprochen, gelistet oder gezählt: Abfragen auf `nodes` brauchen `id > 0`.
-* Schreibkonvention: Transaktion öffnen (`Connection::transactional`), als Erstes den Node mit `lock: true` holen
-  (`SELECT … FOR UPDATE`, ohne Transaktion `LogicException`), dann prüfen, dann schreiben. Die Sperre lässt gleichzeitige
-  Schreiber desselben Nodes warten; Prüfung und Schreiben sehen denselben Eigentümer, Tech-C und Bestand. Reihenfolge der
-  Sperren: erst der Node, dann abhängige Zeilen (Vorschlag, Geräte, Adressen). Eine verletzte Vorbedingung wirft
-  `App\Node\Rejected` und rollt damit zurück. `NodeWriteTest` belegt die Sperre für jede Schreibaktion.
+* For a write to an existing node, open a transaction (`Connection::transactional`) and fetch the node first with
+  `lock: true` (`SELECT … FOR UPDATE`; without a transaction this throws `LogicException`). Then check and write.
+  This makes concurrent writers wait, so checks and writes see the same owner, Tech-C and dependents. Lock the node
+  before any proposal, device or address rows. A failed precondition throws `App\Node\Rejected` and rolls back.
+  `NodeWriteTest` checks which SQL statement waits when both the node and its proposal are locked. Creation uses
+  a single `insertnode` call and does not lock a pre-existing node.
 * Ein Node ist nur ohne Geräte und ohne IPv6-Zeilen löschbar (`Nodes::deletable`, dahinter die Fremdschlüssel).
+
+Run the GPS form conversion check from the repository root with `node --test app/tests/Js/nodes.test.cjs`.
+It uses the Node.js standard library and does not need the database or additional packages.
 
 ## Mutierende Tests (#6, #7)
 

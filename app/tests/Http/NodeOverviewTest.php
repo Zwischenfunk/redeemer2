@@ -88,7 +88,7 @@ final class NodeOverviewTest extends NodeTestCase
         self::assertSame('', self::section($this->loggedIn('testuser')->get(self::NODES)->getContent(), 'tech-c'));
     }
 
-    /** PAR-NODE-03 */
+    /** PAR-NODE-03, PAR-NODE-04-neg */
     public function testInvitedTechContactSeesTheProposalWithAcceptAndDecline(): void
     {
         $html = $this->loggedIn('testplain')->get(self::NODES)->getContent();
@@ -126,6 +126,7 @@ final class NodeOverviewTest extends NodeTestCase
         self::assertSame(200, $user->get(self::NODES.'&id_members=3')->getStatusCode());
         self::assertSame(403, $user->get(self::NODES.'&id_members=4')->getStatusCode());
         self::assertSame(403, $user->get(self::NODES.'&id_members=abc')->getStatusCode());
+        self::assertSame(403, $user->get(self::NODES.'&id_members%5B%5D=3')->getStatusCode());
         self::assertSame(403, $this->loggedIn('testadmin')->get(self::NODES.'&id_members=3')->getStatusCode());
         self::assertSame(405, $user->post(self::NODES)->getStatusCode());
 

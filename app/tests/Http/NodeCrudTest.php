@@ -130,6 +130,20 @@ final class NodeCrudTest extends NodeTestCase
         self::assertSame([3, 4], $this->row(3));
     }
 
+    public function testSmallSavedCoordinatesCanBeResubmittedWithoutChanges(): void
+    {
+        $owner = $this->loggedIn('testuser');
+        $url = self::url('update', 3);
+        $values = self::nodeForm(['name' => 'gamma', 'gps_lat_sec' => '0.00001', 'gps_lon_sec' => '0.000000001']);
+        self::assertSame(200, $owner->post($url, $values + ['_csrf_token' => $owner->tokenFrom($url, 'node-update')])->getStatusCode());
+
+        $form = $owner->get($url)->getContent();
+        preg_match_all('/name="(gps_lat_sec|gps_lon_sec)" value="([^"]*)"/', $form, $matches, PREG_SET_ORDER);
+        $rendered = array_column($matches, 2, 1);
+        self::assertSame(['gps_lat_sec' => '0.00001', 'gps_lon_sec' => '0.000000001'], $rendered);
+        self::assertSame(200, $owner->post($url, $rendered + $values + ['_csrf_token' => Browser::token($form, 'node-update')])->getStatusCode());
+    }
+
     /** PAR-NODE-07 */
     public function testChangeIsRejectedForInvalidOrTakenNames(): void
     {
@@ -165,7 +179,7 @@ final class NodeCrudTest extends NodeTestCase
     public function testDeleteAsksFirstAndThenRemovesTheNodeWithItsProposal(): void
     {
         $owner = $this->loggedIn('testtech');
-        $this->propose($owner, 'proposeTechC', 4, ['id_tech_c' => 'testfriend']);
+        $this->propose($owner, 'proposeTechC', 4, ['recipient_type' => 'nickname', 'id_tech_c' => 'testfriend']);
         self::assertSame([5, 8], $this->row(-4));
         $before = $this->nodes();
 
@@ -219,7 +233,7 @@ final class NodeCrudTest extends NodeTestCase
         self::assertSame(4, (int) $this->db()->fetchOne('SELECT count(*) FROM devices'));
     }
 
-    /** PAR-NODE-08-neg */
+    /** PAR-NODE-08-neg, PAR-NODE-09-neg */
     public function testDeleteIsRefusedForUninvolvedMembersRecipientsAndAdmins(): void
     {
         foreach (['testfriend', 'testadmin', 'testuser'] as $nickname) {
@@ -228,8 +242,11 @@ final class NodeCrudTest extends NodeTestCase
             $this->createNode($browser, ['name' => 'own-'.$nickname]);
             $fields = $this->confirmation($browser, 'delete', $this->nodeId('own-'.$nickname));
             self::assertSame(403, $browser->post(self::url('delete', 4), $fields)->getStatusCode(), $nickname);
+            self::assertSame(403, $browser->post(self::url('delete', 2), $fields)->getStatusCode(), $nickname);
         }
         self::assertSame([5, 5], $this->row(4));
+        self::assertSame([4, 5], $this->row(2));
+        self::assertSame([7, 4], $this->row(-2));
     }
 
     /** PAR-NODE-14, PAR-NODE-16: the ownership survives. */
@@ -289,6 +306,9 @@ final class NodeCrudTest extends NodeTestCase
             self::assertSame(404, $owner->post(self::url('resign', $id), $resign)->getStatusCode(), $id);
         }
         self::assertSame(404, $owner->get(self::NODES.'&action=update')->getStatusCode());
+        $arrayId = self::NODES.'&action=update&id%5B%5D=1';
+        self::assertSame(404, $owner->get($arrayId)->getStatusCode());
+        self::assertSame(404, $owner->post($arrayId, self::nodeForm(['_csrf_token' => $update]))->getStatusCode());
         self::assertSame(404, $owner->get(self::NODES.'&action=bogus&id=1')->getStatusCode());
         self::assertSame($before, $this->nodes());
     }

@@ -78,7 +78,7 @@ final readonly class NodePages
     {
         $this->assertMethod($request, ['GET', 'HEAD']);
         // The legacy list takes id_members, but only for one's own id.
-        if (!in_array($request->query->get('id_members'), [null, (string) $actor->effectiveId], true)) {
+        if (!in_array($request->query->all()['id_members'] ?? null, [null, (string) $actor->effectiveId], true)) {
             throw new Denied();
         }
 
@@ -123,7 +123,11 @@ final readonly class NodePages
         $node = $this->access->managed($actor, $this->nodeId($request));
         if (!$request->isMethod('POST')) {
             $this->assertMethod($request, ['GET', 'HEAD']);
-            $coordinates = array_map(static fn (?float $value) => null === $value ? '' : (string) $value, $node->coordinates);
+            $coordinates = array_map(
+                // Fixed decimals match the precision and notation accepted by NodeRules.
+                static fn (?float $value): string => null === $value ? '' : rtrim(rtrim(sprintf('%.9F', $value), '0'), '.'),
+                $node->coordinates,
+            );
 
             return $this->form($node, ['name' => $node->name, 'map' => $node->map] + $coordinates);
         }
@@ -143,7 +147,10 @@ final readonly class NodePages
     private function propose(Request $request, Actor $actor, ProposalKind $kind): Response
     {
         $node = $this->access->owned($actor, $this->nodeId($request));
-        $parameters = ['node' => $node, 'kind' => $kind, 'pending' => null !== $this->handover->pending($node), 'input' => '', 'stay' => true, 'error' => null];
+        $parameters = [
+            'node' => $node, 'kind' => $kind, 'pending' => null !== $this->handover->pending($node),
+            'input' => '', 'recipient_type' => '', 'stay' => true, 'error' => null, 'error_field' => null,
+        ];
         if (!$request->isMethod('POST')) {
             $this->assertMethod($request, ['GET', 'HEAD']);
 
@@ -157,8 +164,10 @@ final readonly class NodePages
         } catch (Rejected $rejected) {
             return $this->page('node/propose.html.twig', [
                 'input' => is_string($post['id_tech_c'] ?? null) ? trim($post['id_tech_c']) : '',
+                'recipient_type' => is_string($post['recipient_type'] ?? null) ? $post['recipient_type'] : '',
                 'stay' => NodeRules::checked($post['stay_tech_c'] ?? null),
-                'error' => $rejected->errors['id_tech_c'] ?? $rejected->getMessage(),
+                'error' => $rejected->errors['recipient_type'] ?? $rejected->errors['id_tech_c'] ?? $rejected->getMessage(),
+                'error_field' => array_key_first($rejected->errors),
             ] + $parameters, Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
@@ -251,7 +260,7 @@ final readonly class NodePages
     /** Nodes have positive ids; a proposal row is never addressed by its negative id. */
     private function nodeId(Request $request): int
     {
-        $raw = $request->query->get('id');
+        $raw = $request->query->all()['id'] ?? null;
         $id = is_string($raw) ? filter_var($raw, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) : false;
 
         return false === $id ? throw new NotFoundHttpException() : $id;
