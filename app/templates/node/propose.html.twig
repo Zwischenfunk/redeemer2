@@ -1,0 +1,38 @@
+{% extends 'base.html.twig' %}
+
+{% set owner = kind.value == 'owner' %}
+{% set title = owner ? 'Node weitergeben' : 'Tech-Contact einladen' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block body %}
+    <h1>{{ title }}</h1>
+    {% if error %}
+        <div role="alert" data-status="rejected"><p>{{ error }}</p></div>
+    {% endif %}
+    {% if pending %}
+        <p>Für diesen Node gibt es bereits einen offenen Vorschlag. Ein neuer Vorschlag ersetzt ihn.</p>
+    {% endif %}
+    <form method="post" action="{{ path('app_home', {section: 'nodes', action: owner ? 'proposeOwner' : 'proposeTechC', id: node.id}) }}" data-form="node-propose">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('node_propose') }}">
+        <p>
+            <label for="f-recipient-type">Empfänger suchen nach</label>
+            <select id="f-recipient-type" name="recipient_type" required {{ error_field == 'recipient_type' ? 'aria-invalid="true"' }}>
+                <option value="">Bitte auswählen</option>
+                <option value="id" {{ recipient_type == 'id' ? 'selected' }}>Member-ID</option>
+                <option value="nickname" {{ recipient_type == 'nickname' ? 'selected' }}>Nickname</option>
+                <option value="email" {{ recipient_type == 'email' ? 'selected' }}>E-Mail-Adresse</option>
+            </select>
+        </p>
+        <p>
+            <label for="f-id_tech_c">{{ owner ? 'Neuer Besitzer' : 'Tech-Contact' }} für {{ node.name }}</label>
+            <input id="f-id_tech_c" name="id_tech_c" value="{{ input }}" maxlength="100" required {{ error_field == 'id_tech_c' ? 'aria-invalid="true"' }}>
+        </p>
+        {% if owner %}
+            <p><label><input type="checkbox" name="stay_tech_c" value="on" {{ stay ? 'checked' }}> Tech-Contact bleiben</label></p>
+        {% endif %}
+        <button type="submit">Vorschlagen</button>
+        <a href="{{ path('app_home', {section: 'nodes'}) }}">Abbrechen</a>
+    </form>
+    <p><small>Den Eingabetyp auswählen und den passenden Wert eintragen. Der Vorschlag gilt erst, wenn der Empfänger ihn in seinem Account annimmt.</small></p>
+{% endblock %}

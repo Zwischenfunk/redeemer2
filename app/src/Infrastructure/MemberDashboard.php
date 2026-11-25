@@ -2,11 +2,12 @@
 
 namespace App\Infrastructure;
 
+use App\Node\NodeQueries;
 use Doctrine\DBAL\Connection;
 
 final readonly class MemberDashboard
 {
-    public function __construct(private Connection $db)
+    public function __construct(private Connection $db, private NodeQueries $nodes)
     {
     }
 
@@ -36,15 +37,6 @@ final readonly class MemberDashboard
                   ) ranked
                 SQL);
         }
-
-        $proposals = $this->db->fetchOne(<<<'SQL'
-            SELECT count(*) FROM nodes proposal
-             WHERE proposal.id < 0 AND :member IN (proposal.id_members, proposal.id_tech_c)
-               AND proposal.id_members <> proposal.id_tech_c
-               AND NOT EXISTS (
-                   SELECT FROM nodes owned WHERE owned.id = -proposal.id AND owned.id_members = :member
-               )
-            SQL, ['member' => $memberId]);
 
         $stats = $this->db->fetchAllAssociative(<<<'SQL'
             WITH relevant AS (
@@ -76,6 +68,6 @@ final readonly class MemberDashboard
              ORDER BY node_group NULLS LAST
             SQL, ['member' => $memberId]);
 
-        return ['statuses' => $statuses, 'counts' => $counts, 'proposals' => $proposals, 'stats' => $stats];
+        return ['statuses' => $statuses, 'counts' => $counts, 'proposals' => count($this->nodes->incoming($memberId)), 'stats' => $stats];
     }
 }

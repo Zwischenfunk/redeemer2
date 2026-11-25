@@ -6,6 +6,7 @@ use App\Infrastructure\MemberDashboard;
 use App\Security\BrowserAuthenticator;
 use App\Security\MemberIdentity;
 use App\Web\MemberPages;
+use App\Web\NodePages;
 use App\Web\PasswordResetPages;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -19,7 +20,7 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 final class HomeController extends AbstractController
 {
     #[Route('/', name: 'app_home', methods: ['GET', 'POST'])]
-    public function home(Request $request, BrowserAuthenticator $login, Security $security, Connection $db, UrlGeneratorInterface $urls, MemberDashboard $dashboard, MemberPages $memberPages, PasswordResetPages $passwordReset): Response
+    public function home(Request $request, BrowserAuthenticator $login, Security $security, Connection $db, UrlGeneratorInterface $urls, MemberDashboard $dashboard, MemberPages $memberPages, NodePages $nodePages, PasswordResetPages $passwordReset): Response
     {
         $urls->getContext()->setBaseUrl($request->getBasePath());
         $query = $request->query->all();
@@ -59,6 +60,9 @@ final class HomeController extends AbstractController
         $section = $query['section'] ?? '';
         if ('member' === $section) {
             return $memberPages->handle($request, $member);
+        }
+        if ('nodes' === $section) {
+            return $nodePages->handle($request, $member);
         }
         if ($request->isMethod('POST')) {
             throw new MethodNotAllowedHttpException(['GET', 'HEAD']);

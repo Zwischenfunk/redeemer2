@@ -1,0 +1,42 @@
+{% extends 'base.html.twig' %}
+
+{% set labels = {
+    delete: ['Node löschen', 'Löschen'], resign: ['Tech-Contact entfernen', 'Tech-Contact entfernen'],
+    withdraw: ['Vorschlag zurückziehen', 'Zurückziehen'], accept: ['Vorschlag annehmen', 'Annehmen'], decline: ['Vorschlag ablehnen', 'Ablehnen']
+} %}
+{% set owner = contacts[node.ownerId] %}
+
+{% block title %}{{ labels[action][0] }}{% endblock %}
+
+{% block body %}
+    <h1>{{ labels[action][0] }}</h1>
+    {% if action == 'delete' %}
+        <p>Soll der Node {{ node.name }} (ID {{ node.id }}) endgültig gelöscht werden?</p>
+    {% elseif action == 'resign' %}
+        {% set techC = contacts[node.techCId] %}
+        <p>Soll {{ techC.firstname }} {{ techC.lastname }} nicht mehr Tech-Contact des Nodes {{ node.name }} sein?
+            Tech-Contact ist dann wieder {{ owner.firstname }} {{ owner.lastname }}; der Besitz ändert sich nicht.</p>
+    {% else %}
+        {% set recipient = contacts[proposal.recipientId] %}
+        <p>
+            {% if action == 'withdraw' %}
+                Soll der Vorschlag an {{ recipient.firstname }} {{ recipient.lastname }} für den Node {{ node.name }} zurückgezogen werden?
+            {% else %}
+                {{ owner.firstname }} {{ owner.lastname }} schlägt dich für den Node {{ node.name }} vor.
+            {% endif %}
+            {% if not proposal.transfersOwnership %}
+                Vorgeschlagen ist die Aufgabe als Tech-Contact; der Besitz ändert sich nicht.
+            {% elseif proposal.ownerStaysTechC %}
+                Vorgeschlagen ist die Übernahme als Besitzer; {{ owner.firstname }} {{ owner.lastname }} bleibt Tech-Contact.
+            {% else %}
+                Vorgeschlagen ist die Übernahme als Besitzer und Tech-Contact.
+            {% endif %}
+        </p>
+    {% endif %}
+    <form method="post" action="{{ path('app_home', {section: 'nodes', action: action, id: node.id}) }}" data-form="node-{{ action }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('node_' ~ action) }}">
+        {% if proposal %}<input type="hidden" name="proposal" value="{{ proposal.version }}">{% endif %}
+        <button type="submit">{{ labels[action][1] }}</button>
+        <a href="{{ path('app_home', {section: 'nodes'}) }}">Abbrechen</a>
+    </form>
+{% endblock %}

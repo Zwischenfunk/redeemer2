@@ -1,0 +1,110 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Nodes{% endblock %}
+
+{% macro person(contact) %}<a href="mailto:{{ contact.email }}">{{ contact.firstname }} {{ contact.lastname }}</a>{% endmacro %}
+
+{% macro action(name, node, label) %}<a href="{{ path('app_home', {section: 'nodes', action: name, id: node.id}) }}" data-action="{{ name }}">{{ label }}</a>{% endmacro %}
+
+{# Position in decimal degrees and the map flag #}
+{% macro place(node) %}
+    <td>{{ node.latitude is null ? '-' : node.latitude|number_format(4, '.', '') }}<br>{{ node.longitude is null ? '-' : node.longitude|number_format(4, '.', '') }}</td>
+    <td><input type="checkbox" disabled {{ node.map ? 'checked' }} aria-label="Auf der Karte"></td>
+{% endmacro %}
+
+{% macro devices(row) %}
+    <td><a href="{{ path('app_home', {section: 'devices', id_nodes: row.node.id}) }}" data-online="{{ row.online ? 'yes' : 'no' }}" {{ row.online ? 'class="online-good"' }}
+           title="{{ row.v4 }} (v4) + {{ row.v6 }} (v6)">{{ row.v4 + row.v6 }} {{ row.v4 + row.v6 == 1 ? 'Device' : 'Devices' }}</a></td>
+{% endmacro %}
+
+{% macro incoming(proposals, contacts, section, caption) %}
+    {% if proposals %}
+        <table data-section="{{ section }}">
+            <caption>{{ caption }}</caption>
+            <thead><tr><th>Name</th><th>Besitzer</th><th>Position</th><th>Map</th><th>Akzeptieren</th><th>Ablehnen</th></tr></thead>
+            <tbody>
+                {% for proposal in proposals %}
+                    <tr data-node-id="{{ proposal.node.id }}">
+                        <td><strong>{{ proposal.node.name }}</strong>{% if proposal.ownerStaysTechC %}<br>{{ contacts[proposal.node.ownerId].firstname }} {{ contacts[proposal.node.ownerId].lastname }} bleibt Tech-Contact{% endif %}</td>
+                        <td>{{ _self.person(contacts[proposal.node.ownerId]) }}</td>
+                        {{ _self.place(proposal.node) }}
+                        <td>{{ _self.action('accept', proposal.node, 'Akzeptieren') }}</td>
+                        <td>{{ _self.action('decline', proposal.node, 'Ablehnen') }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+{% endmacro %}
+
+{% block body %}
+    <h1>Nodes</h1>
+    <p><a href="{{ path('app_home', {section: 'nodes', action: 'insert'}) }}" data-action="insert">Node hinzufügen</a></p>
+    {% if owned %}
+        <table data-section="owned">
+            <caption>Meine Nodes</caption>
+            <thead><tr><th>Name</th><th>Tech-Contact</th><th>Position</th><th>Map</th><th>Devices</th><th>Aktionen</th><th>Node-ID</th></tr></thead>
+            <tbody>
+                {% for row in owned %}
+                    {% set node = row.node %}
+                    {% set proposal = row.proposal %}
+                    <tr data-node-id="{{ node.id }}">
+                        <td><strong>{{ _self.action('update', node, node.name) }}</strong></td>
+                        <td>
+                            {% if node.hasSeparateTechC %}
+                                {{ _self.person(contacts[node.techCId]) }} {{ _self.action('resign', node, 'Tech-C entfernen') }}<br>
+                            {% endif %}
+                            {% if proposal and not proposal.transfersOwnership %}
+                                Einladung an {{ _self.person(contacts[proposal.recipientId]) }} noch nicht angenommen
+                                <a href="{{ path('app_home', {section: 'nodes', action: 'withdraw', id: node.id}) }}" data-action="withdraw">Einladung zurückziehen</a><br>
+                            {% endif %}
+                            {{ _self.action('proposeTechC', node, 'Tech-C vorschlagen') }}
+                        </td>
+                        {{ _self.place(node) }}
+                        {{ _self.devices(row) }}
+                        <td>
+                            {% if row.v4 + row.v6 == 0 %}
+                                {{ _self.action('delete', node, 'Löschen') }}
+                            {% else %}
+                                <span data-action="delete-blocked">Devices vorhanden: Löschen nicht möglich</span>
+                            {% endif %}
+                            <br>
+                            {% if proposal and proposal.transfersOwnership %}
+                                Weitergabe an {{ _self.person(contacts[proposal.recipientId]) }} wartet auf Bestätigung
+                                <a href="{{ path('app_home', {section: 'nodes', action: 'withdraw', id: node.id}) }}" data-action="withdraw">Weitergabe abbrechen</a>
+                            {% else %}
+                                {{ _self.action('proposeOwner', node, 'Weitergeben') }}
+                            {% endif %}
+                        </td>
+                        <td>{{ node.id }}<br>{{ node.hexId }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Du hast noch keine Knoten angelegt.</p>
+    {% endif %}
+
+    {% if techC %}
+        <table data-section="tech-c">
+            <caption>Du bist Tech-Contact von diesen Nodes</caption>
+            <thead><tr><th>Name</th><th>Besitzer</th><th>Position</th><th>Map</th><th>Devices</th><th>Verzichten</th><th>Node-ID</th></tr></thead>
+            <tbody>
+                {% for row in techC %}
+                    {% set node = row.node %}
+                    <tr data-node-id="{{ node.id }}">
+                        <td><strong>{{ _self.action('update', node, node.name) }}</strong></td>
+                        <td>{{ _self.person(contacts[node.ownerId]) }}</td>
+                        {{ _self.place(node) }}
+                        {{ _self.devices(row) }}
+                        <td>{{ _self.action('resign', node, 'Verzichten') }}</td>
+                        <td>{{ node.id }}<br>{{ node.hexId }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+
+    {{ _self.incoming(incoming|filter(proposal => not proposal.transfersOwnership), contacts, 'incoming-tech-c', 'Diese Benutzer haben dich als Tech-Contact für ihren Node vorgeschlagen') }}
+    {{ _self.incoming(incoming|filter(proposal => proposal.transfersOwnership), contacts, 'incoming-owner', 'Diese Benutzer haben dich als neuen Besitzer ihres Nodes vorgeschlagen') }}
+{% endblock %}
